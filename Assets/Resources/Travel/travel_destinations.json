@@ -1,0 +1,52 @@
+{
+  "destinations": [
+    {
+      "cityName": "JAKARTA",
+      "cityId": 0,
+      "sceneId": "WNI_Jakarta",
+      "districtName": "TANAH ABANG",
+      "areaId": 5,
+      "stopX": 6.3,
+      "stopY": 5.3,
+      "spawnOffsetX": 1.35,
+      "spawnOffsetY": 0.0,
+      "terminal": true
+    },
+    {
+      "cityName": "BANDUNG",
+      "cityId": 1,
+      "sceneId": "WNI_Bandung",
+      "districtName": "BRAGA",
+      "areaId": 7,
+      "stopX": 6.3,
+      "stopY": 5.3,
+      "spawnOffsetX": 1.35,
+      "spawnOffsetY": 0.0,
+      "terminal": true
+    },
+    {
+      "cityName": "SURABAYA",
+      "cityId": 2,
+      "sceneId": "WNI_Surabaya",
+      "districtName": "TUNJUNGAN",
+      "areaId": 9,
+      "stopX": 6.3,
+      "stopY": 5.3,
+      "spawnOffsetX": 1.35,
+      "spawnOffsetY": 0.0,
+      "terminal": true
+    },
+    {
+      "cityName": "YOGYAKARTA",
+      "cityId": 3,
+      "sceneId": "WNI_Yogyakarta",
+      "districtName": "MALIOBORO",
+      "areaId": 12,
+      "stopX": 6.3,
+      "stopY": 5.3,
+      "spawnOffsetX": 1.35,
+      "spawnOffsetY": 0.0,
+      "terminal": true
+    }
+  ]
+}
