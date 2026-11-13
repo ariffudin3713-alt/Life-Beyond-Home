@@ -28,7 +28,18 @@ namespace PixelAdventure.LifeSim
             BuildTrafficArt();
             BuildTabletArt();
             BuildInteriorArt();
+            BuildInteriorArt2();
             BuildDecorArt();
+            BuildHomeArt();
+            BuildIndoArt();
+            BuildIndoArt2();
+            BuildWorshipArt();
+            BuildQuestItemArt();
+            BuildWorkArt();
+            BuildFacadeArt();
+            BuildVehicleArt();
+            BuildTownArt2();
+
         }
 
         static Sprite Add(PixelCanvas c, Vector2 pivot, string key)

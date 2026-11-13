@@ -14,128 +14,67 @@ namespace PixelAdventure.LifeSim
     }
 
     /// <summary>
-    /// Layar INVENTORI: tab kategori di atas, daftar barang di kiri,
-    /// detail barang terpilih (ikon besar, keterangan, kegunaan, aksi) di kanan.
+    /// Layar INVENTORI (panel emas):
+    /// - kepala: judul + uang & energi;
+    /// - tab kategori berbentuk "pil" yang lebarnya dibagi rata;
+    /// - kiri: daftar barang (ikon, nama, jumlah, garis warna kategori) dengan gulir otomatis;
+    /// - kanan: ikon besar berbingkai, nama, label kategori, keterangan, kegunaan, dan tombol aksi.
+    /// Tata letak dihitung ulang tiap frame sehingga teks selalu muat di layar mana pun.
     /// </summary>
     public partial class LifeHud
     {
-        const int InvRowsMax = 14;
-        const int InvTabsMax = 5;
-        const int InvDescLines = 5;
-        const float InvRowH = 0.78f;
-
         static readonly Color InvFood = new Color(0.55f, 0.92f, 0.55f);
         static readonly Color InvGift = new Color(1f, 0.63f, 0.76f);
         static readonly Color InvGear = new Color(0.62f, 0.78f, 1f);
         static readonly Color InvQuest = new Color(1f, 0.84f, 0.40f);
+        static readonly Color InvRide = new Color(1f, 0.66f, 0.38f);
+
+        static readonly Color InvTabOn = new Color(0.52f, 0.38f, 0.14f, 1f);
+        static readonly Color InvTabOff = new Color(0.16f, 0.12f, 0.20f, 1f);
+        static readonly Color InvRowSel = new Color(1f, 0.84f, 0.40f, 0.20f);
+        static readonly Color InvFrame = new Color(0.10f, 0.08f, 0.14f, 1f);
+        static readonly Color InvBtnOn = new Color(0.20f, 0.42f, 0.26f, 1f);
+        static readonly Color InvBtnOff = new Color(0.20f, 0.17f, 0.24f, 1f);
+
+        const float InvRowH = 0.82f;
 
         Transform _invGroup;
-        SpriteRenderer _invPanel, _invTitle, _invHeader, _invListPanel, _invDetailPanel, _invHint, _invMessage;
-        SpriteRenderer _invTabBar, _invRowHighlight, _invEmpty;
-        SpriteRenderer _invBigIcon, _invName, _invKindTag, _invEffect, _invAction, _invMoreUp, _invMoreDown;
-        readonly SpriteRenderer[] _invTabs = new SpriteRenderer[InvTabsMax];
-        readonly SpriteRenderer[] _invRowIcons = new SpriteRenderer[InvRowsMax];
-        readonly SpriteRenderer[] _invRowNames = new SpriteRenderer[InvRowsMax];
-        readonly SpriteRenderer[] _invRowCounts = new SpriteRenderer[InvRowsMax];
-        readonly SpriteRenderer[] _invDesc = new SpriteRenderer[InvDescLines];
-
+        UiPool _iui;
         readonly List<InvEntry> _invEntries = new List<InvEntry>();
-        int _invTabCount, _invTabSel, _invSel, _invFirst;
-        string _invDescText = "";
-        int _invDescChars = -1;
-        int _invBuiltFirst = -1, _invBuiltChars = -1;   // teks baris hanya dibuat ulang bila berubah
+        string[] _invTabNames = new string[0];
+        int _invTabSel, _invSel, _invFirst;
+        string _invHeaderText = "", _invMessageText = "";
 
         void BuildInventory()
         {
             _invGroup = Group("Inventory");
-            _invPanel = Panel(_invGroup, "Panel", "lc_panel_gold", 4010);
-            _invTitle = Text(_invGroup, "Title", "INVENTORI", 2, Gold, new Vector2(0f, 0.5f), 4013);
-            _invHeader = Text(_invGroup, "Header", " ", 1, Ink, new Vector2(1f, 0.5f), 4013);
-            _invTabBar = Solid(_invGroup, "TabBar", Gold, 4012);
-            for (int i = 0; i < InvTabsMax; i++)
-                _invTabs[i] = Text(_invGroup, "Tab" + i, " ", 1, Soft, new Vector2(0.5f, 0.5f), 4013);
-
-            _invListPanel = Panel(_invGroup, "List", "lc_panel_soft", 4011);
-            _invDetailPanel = Panel(_invGroup, "Detail", "lc_panel_soft", 4011);
-            _invRowHighlight = Solid(_invGroup, "RowHighlight", new Color(1f, 0.84f, 0.40f, 0.22f), 4012);
-            for (int i = 0; i < InvRowsMax; i++)
-            {
-                _invRowIcons[i] = Make(_invGroup, PixelArt.Get("lc_item_food"), "RowIcon" + i, 4013);
-                _invRowIcons[i].transform.localScale = Vector3.one * 0.8f;
-                _invRowNames[i] = Text(_invGroup, "RowName" + i, " ", 1, Ink, new Vector2(0f, 0.5f), 4013);
-                _invRowCounts[i] = Text(_invGroup, "RowCount" + i, " ", 1, Soft, new Vector2(1f, 0.5f), 4013);
-            }
-            _invEmpty = Text(_invGroup, "Empty", "TIDAK ADA BARANG", 1, Soft, new Vector2(0.5f, 0.5f), 4013);
-            _invMoreUp = Text(_invGroup, "MoreUp", "▲", 1, Soft, new Vector2(0.5f, 0.5f), 4013);
-            _invMoreDown = Text(_invGroup, "MoreDown", "▼", 1, Soft, new Vector2(0.5f, 0.5f), 4013);
-
-            _invBigIcon = Make(_invGroup, PixelArt.Get("lc_item_food"), "BigIcon", 4013);
-            _invBigIcon.transform.localScale = Vector3.one * 2.4f;
-            _invName = Text(_invGroup, "Name", " ", 2, Ink, new Vector2(0f, 0.5f), 4013);
-            _invKindTag = Text(_invGroup, "Kind", " ", 1, Gold, new Vector2(0f, 0.5f), 4013);
-            for (int i = 0; i < InvDescLines; i++)
-                _invDesc[i] = Text(_invGroup, "Desc" + i, " ", 1, Ink, new Vector2(0f, 0.5f), 4013);
-            _invEffect = Text(_invGroup, "Effect", " ", 1, Gold, new Vector2(0f, 0.5f), 4013);
-            _invAction = Text(_invGroup, "Action", " ", 1, Soft, new Vector2(0f, 0.5f), 4013);
-
-            _invMessage = Text(_invGroup, "Message", " ", 1, Pink, new Vector2(0.5f, 0.5f), 4013);
-            _invHint = Text(_invGroup, "Hint", "A/D - KATEGORI   W/S - PILIH   E - PAKAI   ESC / I - KEMBALI", 1, Gold,
-                new Vector2(0.5f, 0.5f), 4013);
+            _iui = new UiPool(_invGroup, 4010);
             _invGroup.gameObject.SetActive(false);
         }
 
         public bool InventoryVisible => _invGroup != null && _invGroup.gameObject.activeSelf;
 
         static Color KindColor(ItemKind k) =>
-            k == ItemKind.Makanan ? InvFood : k == ItemKind.Hadiah ? InvGift : k == ItemKind.Perlengkapan ? InvGear : InvQuest;
+            k == ItemKind.Makanan ? InvFood : k == ItemKind.Hadiah ? InvGift : k == ItemKind.Perlengkapan ? InvGear
+            : k == ItemKind.Kendaraan ? InvRide : InvQuest;
 
         static string KindIcon(ItemKind k) =>
             k == ItemKind.Makanan ? "lc_item_food" : k == ItemKind.Hadiah ? "lc_item_gift"
-            : k == ItemKind.Perlengkapan ? "lc_item_gear" : "lc_item_quest";
+            : k == ItemKind.Perlengkapan ? "lc_item_gear" : k == ItemKind.Kendaraan ? "lc_item_vehicle_motor" : "lc_item_quest";
+
+        static string KindName(ItemKind k) =>
+            k == ItemKind.Misi ? "BARANG MISI - PENTING" : k == ItemKind.Perlengkapan ? "PERLENGKAPAN" : k.ToString().ToUpperInvariant();
 
         public void ShowInventory(string[] tabs, int tab, List<InvEntry> entries, int selected,
             string header, string message)
         {
-            _invTabCount = Mathf.Min(tabs.Length, InvTabsMax);
+            _invTabNames = tabs ?? new string[0];
             _invTabSel = tab;
-            for (int i = 0; i < InvTabsMax; i++)
-            {
-                bool show = i < _invTabCount;
-                _invTabs[i].gameObject.SetActive(show);
-                if (show) SetText(_invTabs[i], tabs[i], i == tab ? Gold : Soft, 1, new Vector2(0.5f, 0.5f));
-            }
-            SetText(_invHeader, header, Ink, 1, new Vector2(1f, 0.5f));
-            SetText(_invMessage, string.IsNullOrEmpty(message) ? " " : message, Pink, 1, new Vector2(0.5f, 0.5f));
-
+            _invHeaderText = header ?? "";
+            _invMessageText = message ?? "";
             _invEntries.Clear();
             _invEntries.AddRange(entries);
             _invSel = Mathf.Clamp(selected, 0, Mathf.Max(0, entries.Count - 1));
-
-            // Detail barang terpilih.
-            bool any = entries.Count > 0;
-            _invBigIcon.gameObject.SetActive(any);
-            _invName.gameObject.SetActive(any);
-            _invKindTag.gameObject.SetActive(any);
-            _invEffect.gameObject.SetActive(any);
-            _invAction.gameObject.SetActive(any);
-            if (any)
-            {
-                var e = entries[_invSel];
-                Color kc = KindColor(e.Kind);
-                _invBigIcon.sprite = PixelArt.Get(string.IsNullOrEmpty(e.Icon) ? KindIcon(e.Kind) : e.Icon);
-                SetText(_invName, e.Name.ToUpperInvariant() + (e.Count > 1 ? "  x" + e.Count : ""), Ink, 2,
-                    new Vector2(0f, 0.5f));
-                SetText(_invKindTag, "[" + e.Kind.ToString().ToUpperInvariant() + "]", kc, 1, new Vector2(0f, 0.5f));
-                SetText(_invEffect, string.IsNullOrEmpty(e.Effect) ? " " : e.Effect.ToUpperInvariant(), Gold, 1,
-                    new Vector2(0f, 0.5f));
-                SetText(_invAction, string.IsNullOrEmpty(e.Action) ? " " : e.Action.ToUpperInvariant(),
-                    e.Usable ? InvFood : Soft, 1, new Vector2(0f, 0.5f));
-                _invDescText = (e.Desc ?? "").ToUpperInvariant();
-            }
-            else _invDescText = "";
-            _invDescChars = -1;   // keterangan dibungkus ulang saat layout
-            _invBuiltFirst = -1;  // teks baris dibuat ulang saat layout
-
             SetDim(0.78f);
             _invGroup.gameObject.SetActive(true);
             HidePrompt();
@@ -150,106 +89,142 @@ namespace PixelAdventure.LifeSim
         void LayoutInventory(float halfW, float halfH)
         {
             if (!InventoryVisible) return;
+            var ui = _iui;
+            ui.Begin();
+
             float w = Mathf.Min(halfW * 2f - 0.8f, 28f);
-            float h = halfH * 2f - 0.8f;
+            float h = Mathf.Min(halfH * 2f - 0.8f, 15.6f);
             float top = h * 0.5f, left = -w * 0.5f;
-            SetRect(_invPanel, 0f, 0f, w, h);
+            ui.Panel("lc_panel_gold", 0f, 0f, w, h, 0);
+            CloseAt(w * 0.5f, h * 0.5f);
 
-            _invTitle.transform.localPosition = new Vector3(left + 0.7f, top - 0.75f, 0f);
-            _invHeader.transform.localPosition = new Vector3(-left - 0.7f, top - 0.75f, 0f);
+            // ---- kepala
+            ui.Text("INVENTORI", left + 0.7f, top - 0.75f, Gold, 2);
+            ui.Text(Fit(_invHeaderText, CharsFor(w * 0.5f - 1.4f)), -left - 1.1f, top - 0.75f, Ink, 1, 1f);
 
-            // Tab kategori.
-            float tabY = top - 1.75f;
-            float tabW = (w - 1.4f) / Mathf.Max(1, _invTabCount);
-            for (int i = 0; i < _invTabCount; i++)
+            // ---- tab kategori
+            int n = Mathf.Max(1, _invTabNames.Length);
+            float tabY = top - 1.7f;
+            float tabW = (w - 1.4f) / n;
+            for (int i = 0; i < _invTabNames.Length; i++)
             {
+                bool sel = i == _invTabSel;
                 float tx = left + 0.7f + tabW * (i + 0.5f);
-                _invTabs[i].transform.localPosition = new Vector3(tx, tabY, 0f);
-                if (i == _invTabSel) SetSolid(_invTabBar, tx, tabY - 0.38f, tabW * 0.7f, 0.08f);
+                ui.Solid(tx, tabY, tabW - 0.16f, 0.62f, sel ? InvTabOn : InvTabOff, 2);
+                if (sel) ui.Solid(tx, tabY - 0.31f, tabW - 0.16f, 0.07f, Gold, 3);
+                ui.Text(Fit(_invTabNames[i], CharsFor(tabW - 0.4f)), tx, tabY, sel ? Gold : Soft, 1, 0.5f);
             }
 
-            // Panel daftar & detail.
-            float bodyTop = top - 2.45f;
-            float bodyBottom = -top + 1.55f;
-            float bodyH = bodyTop - bodyBottom;
-            float listW = (w - 1.4f) * 0.48f;
-            float detailW = (w - 1.4f) - listW - 0.3f;
+            // ---- badan
+            float bodyTop = top - 2.3f, bodyBottom = -top + 1.35f, bodyH = bodyTop - bodyBottom;
+            float inner = w - 1.4f;
+            float listW = inner * 0.46f, detailW = inner - listW - 0.3f;
             float listCx = left + 0.7f + listW * 0.5f;
             float detailL = left + 0.7f + listW + 0.3f;
-            SetRect(_invListPanel, listCx, bodyBottom + bodyH * 0.5f, listW, bodyH);
-            SetRect(_invDetailPanel, detailL + detailW * 0.5f, bodyBottom + bodyH * 0.5f, detailW, bodyH);
+            float midY = bodyBottom + bodyH * 0.5f;
+            ui.Panel("lc_panel_soft", listCx, midY, listW, bodyH, 1);
+            ui.Panel("lc_panel_soft", detailL + detailW * 0.5f, midY, detailW, bodyH, 1);
 
-            // Baris daftar dengan jendela gulir mengikuti pilihan.
-            int visibleRows = Mathf.Clamp(Mathf.FloorToInt((bodyH - 0.6f) / InvRowH), 1, InvRowsMax);
+            LayoutInvList(ui, listCx, listW, bodyTop, bodyBottom);
+            LayoutInvDetail(ui, detailL + 0.5f, detailW - 1.0f, bodyTop, bodyBottom);
+
+            // ---- pesan & petunjuk
+            if (!string.IsNullOrEmpty(_invMessageText))
+                ui.Text(Fit(_invMessageText, CharsFor(w - 1.4f)), 0f, -top + 0.95f, Pink, 1, 0.5f);
+            ui.Text(Fit("A/D - KATEGORI   W/S - PILIH   E - PAKAI   ESC / I - KEMBALI", CharsFor(w - 1.4f)),
+                0f, -top + 0.45f, Gold, 1, 0.5f);
+            ui.End();
+        }
+
+        void LayoutInvList(UiPool ui, float cx, float lw, float bodyTop, float bodyBottom)
+        {
+            float l = cx - lw * 0.5f + 0.3f, r = cx + lw * 0.5f - 0.3f;
+            if (_invEntries.Count == 0)
+            {
+                ui.Text("TIDAK ADA BARANG", cx, bodyTop - 0.8f, Soft, 1, 0.5f);
+                ui.Text("DI KATEGORI INI", cx, bodyTop - 1.3f, Soft, 1, 0.5f);
+                return;
+            }
+
+            float rowsTop = bodyTop - 0.6f;
+            int visible = Mathf.Max(1, Mathf.FloorToInt((rowsTop - bodyBottom - 0.2f) / InvRowH) + 1);
             if (_invSel < _invFirst) _invFirst = _invSel;
-            if (_invSel >= _invFirst + visibleRows) _invFirst = _invSel - visibleRows + 1;
-            _invFirst = Mathf.Clamp(_invFirst, 0, Mathf.Max(0, _invEntries.Count - visibleRows));
+            if (_invSel >= _invFirst + visible) _invFirst = _invSel - visible + 1;
+            _invFirst = Mathf.Clamp(_invFirst, 0, Mathf.Max(0, _invEntries.Count - visible));
 
-            float rowTop = bodyTop - 0.55f;
-            float rowL = listCx - listW * 0.5f + 0.35f;
-            float rowR = listCx + listW * 0.5f - 0.35f;
-            int nameChars = Mathf.Max(6, Mathf.FloorToInt((rowR - rowL - 1.9f) / (6f / 16f)));
-            bool rebuildText = _invBuiltFirst != _invFirst || _invBuiltChars != nameChars;
-            _invBuiltFirst = _invFirst;
-            _invBuiltChars = nameChars;
-            for (int i = 0; i < InvRowsMax; i++)
+            int nameChars = CharsFor(r - l - 2.2f);
+            for (int i = 0; i < visible; i++)
             {
                 int idx = _invFirst + i;
-                bool show = i < visibleRows && idx < _invEntries.Count;
-                _invRowIcons[i].gameObject.SetActive(show);
-                _invRowNames[i].gameObject.SetActive(show);
-                _invRowCounts[i].gameObject.SetActive(show);
-                if (!show) continue;
+                if (idx >= _invEntries.Count) break;
                 var e = _invEntries[idx];
-                float y = rowTop - i * InvRowH;
+                float y = rowsTop - i * InvRowH;
                 bool sel = idx == _invSel;
-                if (rebuildText)
-                {
-                    _invRowIcons[i].sprite = PixelArt.Get(string.IsNullOrEmpty(e.Icon) ? KindIcon(e.Kind) : e.Icon);
-                    string name = e.Name.ToUpperInvariant();
-                    if (name.Length > nameChars) name = name.Substring(0, nameChars - 2) + "..";
-                    SetText(_invRowNames[i], (sel ? "> " : "") + name,
-                        sel ? Gold : KindColor(e.Kind) * 0.35f + Ink * 0.65f, 1, new Vector2(0f, 0.5f));
-                    SetText(_invRowCounts[i], "x" + e.Count, Soft, 1, new Vector2(1f, 0.5f));
-                }
-                _invRowIcons[i].transform.localPosition = new Vector3(rowL + 0.4f, y, 0f);
-                _invRowNames[i].transform.localPosition = new Vector3(rowL + 0.95f, y, 0f);
-                _invRowCounts[i].transform.localPosition = new Vector3(rowR, y, 0f);
-                if (sel) SetSolid(_invRowHighlight, listCx, y, listW - 0.3f, InvRowH - 0.08f);
+                Color kc = KindColor(e.Kind);
+                if (sel) ui.Solid(cx, y, lw - 0.3f, InvRowH - 0.08f, InvRowSel, 2);
+                ui.Solid(l + 0.06f, y, 0.12f, InvRowH - 0.22f, kc, 3);                // garis warna kategori
+                ui.Sprite(PixelArt.Get(string.IsNullOrEmpty(e.Icon) ? KindIcon(e.Kind) : e.Icon), l + 0.65f, y, 0.72f);
+                string name = (e.Kind == ItemKind.Misi ? "! " : "") + e.Name;
+                ui.Text(Fit(name, nameChars), l + 1.25f, y, sel ? Gold : Ink);
+                ui.Text("X" + e.Count, r, y, Soft, 1, 1f);
             }
-            _invRowHighlight.gameObject.SetActive(_invEntries.Count > 0);
-            _invEmpty.gameObject.SetActive(_invEntries.Count == 0);
-            _invEmpty.transform.localPosition = new Vector3(listCx, rowTop - 0.2f, 0f);
-            _invMoreUp.gameObject.SetActive(_invFirst > 0);
-            _invMoreDown.gameObject.SetActive(_invFirst + visibleRows < _invEntries.Count);
-            _invMoreUp.transform.localPosition = new Vector3(listCx, bodyTop - 0.18f, 0f);
-            _invMoreDown.transform.localPosition = new Vector3(listCx, bodyBottom + 0.2f, 0f);
+            if (_invFirst > 0) ui.Text("▲", cx, bodyTop - 0.18f, Soft, 1, 0.5f);
+            if (_invFirst + visible < _invEntries.Count) ui.Text("▼", cx, bodyBottom + 0.2f, Soft, 1, 0.5f);
+        }
 
-            // Detail.
-            float dl = detailL + 0.45f;
-            float dTop = bodyTop - 0.35f;
-            _invBigIcon.transform.localPosition = new Vector3(dl + 1.2f, dTop - 1.3f, 0f);
-            _invName.transform.localPosition = new Vector3(dl + 2.7f, dTop - 0.95f, 0f);
-            _invKindTag.transform.localPosition = new Vector3(dl + 2.7f, dTop - 1.8f, 0f);
+        void LayoutInvDetail(UiPool ui, float x0, float dw, float bodyTop, float bodyBottom)
+        {
+            if (_invEntries.Count == 0) return;
+            var e = _invEntries[_invSel];
+            Color kc = KindColor(e.Kind);
 
-            int descChars = Mathf.Max(10, Mathf.FloorToInt((detailW - 0.9f) / (6f / 16f)));
-            if (descChars != _invDescChars)
+            // ikon besar dalam bingkai
+            float iconC = bodyTop - 1.5f;
+            ui.Solid(x0 + 1.2f, iconC, 2.4f, 2.4f, InvFrame, 2);
+            ui.Solid(x0 + 1.2f, iconC - 1.16f, 2.4f, 0.08f, kc, 3);
+            ui.Sprite(PixelArt.Get(string.IsNullOrEmpty(e.Icon) ? KindIcon(e.Kind) : e.Icon), x0 + 1.2f, iconC, 2.0f, 4);
+
+            // nama & kategori
+            float nx = x0 + 2.8f, nw = dw - 2.8f;
+            string name = Safe(e.Name) + (e.Count > 1 ? "  X" + e.Count : "");
+            float ny = bodyTop - 0.85f;
+            if (name.Length * UiCharW * 2f <= nw) { ui.Text(name, nx, ny, Ink, 2); ny -= 0.9f; }
+            else
             {
-                _invDescChars = descChars;
-                string[] lines = WrapAll(_invDescText, descChars, InvDescLines);
-                for (int i = 0; i < InvDescLines; i++)
-                {
-                    string l = i < lines.Length && _invDescText.Length > 0 ? lines[i] : " ";
-                    SetText(_invDesc[i], l, Ink, 1, new Vector2(0f, 0.5f));
-                }
+                foreach (string l in WrapAll(name, CharsFor(nw), 2)) { ui.Text(l, nx, ny, Ink); ny -= UiLine; }
+                ny -= 0.15f;
             }
-            for (int i = 0; i < InvDescLines; i++)
-                _invDesc[i].transform.localPosition = new Vector3(dl, dTop - 3.2f - i * 0.5f, 0f);
-            _invEffect.transform.localPosition = new Vector3(dl, dTop - 3.4f - InvDescLines * 0.5f, 0f);
-            _invAction.transform.localPosition = new Vector3(dl, bodyBottom + 0.55f, 0f);
+            ui.Text(Fit("[" + KindName(e.Kind) + "]", CharsFor(nw)), nx, ny, kc);
 
-            _invMessage.transform.localPosition = new Vector3(0f, -top + 1.05f, 0f);
-            _invHint.transform.localPosition = new Vector3(0f, -top + 0.45f, 0f);
+            float y = bodyTop - 3.05f;
+            ui.Solid(x0 + dw * 0.5f, y, dw, 0.06f, JRule, 2);
+
+            // bawah: tombol aksi + kegunaan (dipesan dulu supaya keterangan tidak menimpanya)
+            float btnY = bodyBottom + 0.55f;
+            string[] effect = WrapAll(Safe(e.Effect), CharsFor(dw), 2);
+            bool hasEffect = !string.IsNullOrEmpty(e.Effect) && e.Effect.Trim().Length > 0;
+            float effTop = btnY + 0.75f + (hasEffect ? effect.Length * UiLine + 0.45f : 0f);
+
+            y -= 0.45f;
+            ui.Text("KETERANGAN", x0, y, Soft);
+            y -= UiLine + 0.05f;
+            int descMax = Mathf.Max(1, Mathf.FloorToInt((y - effTop) / UiLine) + 1);
+            foreach (string l in WrapAll(Safe(e.Desc), CharsFor(dw), descMax)) { ui.Text(l, x0, y, Ink); y -= UiLine; }
+
+            if (hasEffect)
+            {
+                float ey = effTop - 0.1f;
+                ui.Text("KEGUNAAN", x0, ey, Soft);
+                ey -= UiLine;
+                foreach (string l in effect) { ui.Text(l, x0, ey, Gold); ey -= UiLine; }
+            }
+
+            bool hasAction = !string.IsNullOrEmpty(e.Action) && e.Action.Trim().Length > 0;
+            if (hasAction)
+            {
+                ui.Solid(x0 + dw * 0.5f, btnY, dw, 0.66f, e.Usable ? InvBtnOn : InvBtnOff, 2);
+                ui.Text(Fit(e.Action, CharsFor(dw - 0.4f)), x0 + dw * 0.5f, btnY, e.Usable ? Ink : Soft, 1, 0.5f);
+            }
         }
     }
 }

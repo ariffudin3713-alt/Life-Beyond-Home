@@ -157,6 +157,7 @@ namespace PixelAdventure.LifeSim
             float h = halfH * 2f - 0.8f;
             float top = h * 0.5f;
             SetRect(_taskPanel, 0f, 0f, w, h);
+            CloseAt(w * 0.5f, h * 0.5f);
 
             _taskTitle.transform.localPosition = new Vector3(0f, top - 0.72f, 0f);
             _taskSub.transform.localPosition = new Vector3(0f, top - 1.45f, 0f);

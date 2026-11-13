@@ -4,7 +4,7 @@ using UnityEngine;
 namespace PixelAdventure
 {
     /// <summary>All sound is generated at runtime: chiptune music and crunchy square-wave SFX.</summary>
-    public static class GameAudio
+    public static partial class GameAudio
     {
         const int SampleRate = 22050;
         const string MuteKey = "PixelQuest.Muted";
@@ -25,6 +25,9 @@ namespace PixelAdventure
             _sfx = null;
             _music = null;
             _musicIndex = -1;
+            _ambience = null;
+            _ambienceKey = null;
+            Ambience.Clear();
         }
 
         public static void Init(GameObject host)
@@ -46,6 +49,12 @@ namespace PixelAdventure
             _music.loop = true;
             _music.spatialBlend = 0f;
             _music.volume = 0.20f;
+
+            _ambience = go.AddComponent<AudioSource>();
+            _ambience.playOnAwake = false;
+            _ambience.loop = true;
+            _ambience.spatialBlend = 0f;
+            _ambience.volume = 0.14f;
         }
 
         public static void Play(string name, float volume = 1f, float pitch = 1f)
@@ -68,7 +77,7 @@ namespace PixelAdventure
             _musicIndex = index;
             if (!Music.TryGetValue(index, out AudioClip clip) || clip == null)
             {
-                clip = BuildMusic(index);
+                clip = index >= 10 ? BuildMusicExtra(index) : BuildMusic(index);   // 10+ = lagu baru (GameMusic.cs)
                 Music[index] = clip;
             }
             _music.clip = clip;
@@ -335,7 +344,7 @@ namespace PixelAdventure
                         AddNote(b, i * 0.11f, notes[i], 0.36f, 0.2f, 2, 0.006f, 0.2f);
                     return Finish(name, b, 0.55f);
                 }
-                default: return null;
+                default: return BuildExtraSfx(name);
             }
         }
 

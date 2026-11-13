@@ -29,6 +29,7 @@ namespace PixelAdventure.LifeSim
         readonly float[] _starPhases = new float[StarCount];
 
         SpriteRenderer _statsPanel, _barsPanel;
+        SpriteRenderer _statsRule1, _statsRule2, _questLabel;
         SpriteRenderer _dayText, _timeText, _moneyText, _questText, _questText2, _phaseText, _hungerText;
         SpriteRenderer _coinIcon, _clockIcon, _boltIcon, _heartIcon;
         SpriteRenderer _energyBar, _energyFill, _affBar, _affFill, _affNameText;
@@ -70,6 +71,7 @@ namespace PixelAdventure.LifeSim
             BuildHome();
             BuildPause();
             BuildWork();
+            BuildWorkGame();
             BuildEnding();
             BuildJournal();
             BuildWorldUI();
@@ -79,6 +81,8 @@ namespace PixelAdventure.LifeSim
             BuildTablet();
             BuildProfile();
             BuildGuide();
+            BuildContacts();
+            BuildCloseButton();
 
             HidePrompt();
             HideDialogue();
@@ -164,6 +168,11 @@ namespace PixelAdventure.LifeSim
             _seedText.gameObject.SetActive(false);
             _flowerText.gameObject.SetActive(false);
 
+            // Panel kiri atas: garis pemisah antar bagian + label "MISI SAAT INI".
+            _statsRule1 = Solid(_hudGroup, "StatsRule1", new Color(1f, 1f, 1f, 0.12f), 3995);
+            _statsRule2 = Solid(_hudGroup, "StatsRule2", new Color(1f, 1f, 1f, 0.12f), 3995);
+            _questLabel = Text(_hudGroup, "QuestLabel", "MISI SAAT INI", 1, Soft, new Vector2(0f, 0.5f));
+
             _toast = Text(_hudGroup, "Toast", " ", 2, Gold, new Vector2(0.5f, 0.5f), 4020);
             _toast.gameObject.SetActive(false);
             _hudGroup.gameObject.SetActive(false);
@@ -204,7 +213,7 @@ namespace PixelAdventure.LifeSim
             int hh = minutes / 60;
             int mm = minutes % 60;
             string timeText = (hh < 10 ? "0" : "") + hh + ":" + (mm < 10 ? "0" : "") + mm;
-            string moneyText = money.ToString();
+            string moneyText = "RP" + money.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", ".");
             string phase = PhaseFor(minutes);
 
             if (dayText != _lastDay)
@@ -230,7 +239,7 @@ namespace PixelAdventure.LifeSim
             if (phase != _lastPhase)
             {
                 _lastPhase = phase;
-                SetText(_phaseText, phase, Soft, 1, new Vector2(0f, 0.5f));
+                SetText(_phaseText, phase, Soft, 1, new Vector2(1f, 0.5f));
             }
             if (energy != _lastEnergy)
             {
@@ -252,13 +261,14 @@ namespace PixelAdventure.LifeSim
         }
 
         /// <summary>Lebar panel status kiri atas (unit) — teks misi dibungkus agar muat di dalamnya.</summary>
-        const float StatsPanelW = 12.4f;
+        const float StatsPanelMaxW = 13.4f;
+        float _statsW = 12.4f;          // lebar panel saat ini (menyempit di layar sempit)
         int _questLineCount = 1;
 
         /// <summary>Bungkus teks misi per kata menjadi maks. 2 baris selebar panel; sisanya diberi "...".</summary>
         void SetQuestLines(string quest)
         {
-            int maxChars = Mathf.FloorToInt((StatsPanelW - 0.45f - 0.4f) / (6f / 16f));   // ±28 huruf
+            int maxChars = Mathf.FloorToInt((_statsW - 0.5f - 0.5f) / (6f / 16f));   // ±33 huruf
             var lines = new List<string>();
             string cur = "";
             foreach (string raw in (quest ?? " ").Split(' '))
@@ -293,7 +303,16 @@ namespace PixelAdventure.LifeSim
         {
             if (text == _lastSubline) return;
             _lastSubline = text;
-            SetText(_hungerText, string.IsNullOrEmpty(text) ? " " : text, Soft, 1, new Vector2(1f, 0.5f));
+            ApplySubline();
+        }
+
+        bool _sublineShort;
+
+        void ApplySubline()
+        {
+            string text = string.IsNullOrEmpty(_lastSubline) ? " " : _lastSubline;
+            if (_sublineShort) text = text.Replace("TABUNGAN ", "TAB. ");
+            SetText(_hungerText, text, Soft, 1, new Vector2(1f, 0.5f));
         }
 
         public void SetPrompt(string text)
@@ -448,21 +467,38 @@ namespace PixelAdventure.LifeSim
             }
 
             // ---------------- top left stats
+            // Panel status tiga bagian, dipisah garis tipis:
+            //   1) HARI n   [jam] 08:30 ........ PAGI
+            //   2) MISI SAAT INI / teks misi (maks. 2 baris)
+            //   3) [koin] RP245.000 ...... TABUNGAN RP120.000
             float top = halfH - 0.28f;
             float left = -halfW + 0.28f;
-            SetRect(_statsPanel, left + StatsPanelW * 0.5f, top - 1.55f, StatsPanelW, 3.1f);
+            float statsW = Mathf.Clamp(halfW * 2f - 8.4f - 0.56f - 0.4f, 10.5f, StatsPanelMaxW);
+            if (Mathf.Abs(statsW - _statsW) > 0.01f) { _statsW = statsW; SetQuestLines(_lastQuest); }
+            const float statsH = 3.85f;
+            float padL = left + 0.5f, padR = left + _statsW - 0.5f;
+            SetRect(_statsPanel, left + _statsW * 0.5f, top - statsH * 0.5f, _statsW, statsH);
 
-            _dayText.transform.localPosition = new Vector3(left + 0.45f, top - 0.55f, 0f);
-            _clockIcon.transform.localPosition = new Vector3(left + 4.3f, top - 0.55f, 0f);
-            _timeText.transform.localPosition = new Vector3(left + 4.72f, top - 0.55f, 0f);
-            _coinIcon.transform.localPosition = new Vector3(left + 8.05f, top - 0.55f, 0f);
-            _moneyText.transform.localPosition = new Vector3(left + 8.45f, top - 0.55f, 0f);
-            // Teks misi: 1 baris di tengah, atau 2 baris bila panjang (tetap di dalam panel).
-            bool twoLines = _questLineCount > 1;
-            _questText.transform.localPosition = new Vector3(left + 0.45f, top - (twoLines ? 1.27f : 1.55f), 0f);
-            _questText2.transform.localPosition = new Vector3(left + 0.45f, top - 1.82f, 0f);
-            _phaseText.transform.localPosition = new Vector3(left + 5.15f, top - 2.45f, 0f);
-            _hungerText.transform.localPosition = new Vector3(left + 12.15f, top - 2.45f, 0f);
+            float row1 = top - 0.58f;
+            _dayText.transform.localPosition = new Vector3(padL, row1, 0f);
+            _clockIcon.transform.localPosition = new Vector3(padL + 3.35f, row1, 0f);
+            _timeText.transform.localPosition = new Vector3(padL + 3.95f, row1, 0f);
+            _phaseText.transform.localPosition = new Vector3(padR, row1, 0f);
+            SetSolid(_statsRule1, left + _statsW * 0.5f, top - 1.05f, _statsW - 0.7f, 0.05f);
+
+            _questLabel.transform.localPosition = new Vector3(padL, top - 1.45f, 0f);
+            _questText.transform.localPosition = new Vector3(padL, top - 1.98f, 0f);
+            _questText2.transform.localPosition = new Vector3(padL, top - 2.52f, 0f);
+            SetSolid(_statsRule2, left + _statsW * 0.5f, top - 2.95f, _statsW - 0.7f, 0.05f);
+
+            float row3 = top - 3.38f;
+            _coinIcon.transform.localPosition = new Vector3(padL + 0.3f, row3, 0f);
+            _moneyText.transform.localPosition = new Vector3(padL + 0.75f, row3, 0f);
+            _hungerText.transform.localPosition = new Vector3(padR, row3, 0f);
+            // Uang & tabungan sebaris: bila tidak muat, label "TABUNGAN" dipendekkan menjadi "TAB.".
+            int rowChars = Mathf.FloorToInt((padR - padL - 0.75f - 0.5f) / (6f / 16f));
+            bool shortSub = (_lastMoney ?? "").Length + (_lastSubline ?? "").Length > rowChars;
+            if (shortSub != _sublineShort) { _sublineShort = shortSub; ApplySubline(); }
 
             _seedIcon.transform.localPosition = new Vector3(left + 0.62f, top - 2.45f, 0f);
             _seedText.transform.localPosition = new Vector3(left + 1.02f, top - 2.45f, 0f);
@@ -518,10 +554,13 @@ namespace PixelAdventure.LifeSim
             LayoutInventory(halfW, halfH);
             LayoutTablet(halfW, halfH);
             LayoutProfile(halfW, halfH);
+            LayoutContacts(halfW, halfH);
             LayoutGuideButton(halfW, halfH);
             LayoutGuide(halfW, halfH);
             LayoutWorldUI(halfW, halfH);
             LayoutOverlays(halfW, halfH);
+            if (_pauseGroup != null && _pauseGroup.gameObject.activeSelf) CloseAt(7.5f, 3.6f, 3);
+            LayoutCloseButton();
         }
 
         void SetRow(float left, float y, float width, float height,

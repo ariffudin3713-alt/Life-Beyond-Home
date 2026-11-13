@@ -17,6 +17,7 @@ namespace PixelAdventure.LifeSim
                 "KETUK / KLIK|Jalan ke titik itu",
                 "KETUK 2X|Berlari ke titik itu",
                 "SHIFT|Berlari (tahan)",
+                "V|Panggil / simpan kendaraan",
                 "E / SPASI|Bicara, masuk, pilih",
                 "TAB|Buka tablet",
                 "I|Inventori",
@@ -44,6 +45,8 @@ namespace PixelAdventure.LifeSim
             {
                 "Melamar|Datangi tempat kerja yang ditandai bintang biru.",
                 "Jam kerja|Datang tepat waktu agar upah tidak dipotong.",
+                "Saat bekerja|Tiap pekerjaan punya permainan sendiri: pilih jawaban, panah, tekan cepat, tepat waktu, atau bidik.",
+                "Bonus|Semua tugas tepat = bonus upah. Kombo beruntun dihitung.",
                 "Level|Bekerja memberi EXP. Naik level membuka pekerjaan baru.",
                 "Kursus|Pekerjaan tinggi butuh kursus di Perpustakaan.",
             } },
@@ -53,6 +56,7 @@ namespace PixelAdventure.LifeSim
                 "Di dalam|Datangi kasir, kasur, atau resepsionis.",
                 "Keluar|Berjalan ke keset pintu di bawah.",
                 "Bus|Naik dari terminal. Tujuan misi bertanda [MISI].",
+                "Kendaraan|Beli di Dealer (Kota). Tekan V di luar untuk memanggil / menyimpan. Bisa dikendarai antarwilayah dari terminal.",
             } },
             new GuidePage { Title = "TEMAN", Icon = "lc_item_gift", Entries = new[]
             {
@@ -82,7 +86,7 @@ namespace PixelAdventure.LifeSim
             _returnToTablet = fromTablet;
             _state = State.Guide;
             _hud.SetPrompt(null);
-            GameAudio.Play("click", 0.4f);
+            GameAudio.Play("page", 0.5f);
             _hud.ShowGuide(GuidePages);    // halaman disusun otomatis (topik panjang bersambung)
             _inputLock = 0.2f;
         }
@@ -93,11 +97,12 @@ namespace PixelAdventure.LifeSim
             if (LifeInput.CancelPressed || LifeInput.GuidePressed || LifeInput.InteractPressed)
             {
                 _hud.HideGuide();
-                CloseSubScreen();
+                if (_guideFromHome) { _guideFromHome = false; ShowTitle(); }   // dibuka dari halaman utama
+                else CloseSubScreen();
                 return;
             }
             int move = LifeInput.LeftPressed ? -1 : LifeInput.RightPressed ? 1 : 0;
-            if (move != 0 && _hud.GuideFlip(move)) GameAudio.Play("click", 0.35f);
+            if (move != 0 && _hud.GuideFlip(move)) GameAudio.Play("page", 0.45f);
         }
     }
 }

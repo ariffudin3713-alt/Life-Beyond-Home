@@ -96,10 +96,14 @@ namespace PixelAdventure.LifeSim
                 }
             // Trotoar dulu di keempat sisi jalan, lalu jalan menimpanya di persimpangan
             // (trotoar tidak lagi melintang di atas jalan simpang).
-            Pavement(c, 0, 28 * 16, c.Width, 2 * 16);
-            Pavement(c, 0, 38 * 16, c.Width, 2 * 16);
-            Pavement(c, 42 * 16, 0, 2 * 16, c.Height);
-            Pavement(c, 52 * 16, 0, 2 * 16, c.Height);
+            Pavement(c, 0, 28 * 16, c.Width, 2 * 16, 'T');
+            Pavement(c, 0, 38 * 16, c.Width, 2 * 16, 'B');
+            Pavement(c, 42 * 16, 0, 2 * 16, c.Height, 'R');
+            Pavement(c, 52 * 16, 0, 2 * 16, c.Height, 'L');
+            // Sudut pertemuan trotoar: paving polos agar belang kanstin tidak memotong trotoar.
+            foreach (int cx in new[] { 42, 52 })
+                foreach (int cy in new[] { 28, 38 })
+                    PavementCorner(c, cx * 16, cy * 16, 32, cy == 28, cx == 42);
             AsphaltNetwork(c, 23, true,
                 T(0, 30, MapW, 8),      // jalan utama
                 T(44, 0, 8, MapH));     // jalan simpang
@@ -107,6 +111,7 @@ namespace PixelAdventure.LifeSim
             // Taman Pelangi
             c.Ellipse(18 * 16, 58 * 16, 14 * 16, 10 * 16, PixelArt.Hex("3f8639"));
             c.Ellipse(18 * 16, 58 * 16, 13 * 16, 9 * 16, Grass);
+            ParkPaths(c);
             Color32[] rainbow =
             {
                 PixelArt.Hex("ff7a7a"), PixelArt.Hex("ffb35c"), PixelArt.Hex("ffe066"),
@@ -151,8 +156,8 @@ namespace PixelAdventure.LifeSim
                     c.Set(x, y, h % 7 == 0 ? PixelArt.Hex("888378") : PixelArt.Hex("9b958a"));
                 }
             AsphaltNetwork(c, 31, false, T(0, 30, MapW, 4));
-            Pavement(c, 0, 34 * 16, c.Width, 3 * 16);
-            Pavement(c, 0, 27 * 16, c.Width, 3 * 16);
+            Pavement(c, 0, 34 * 16, c.Width, 3 * 16, 'B');
+            Pavement(c, 0, 27 * 16, c.Width, 3 * 16, 'T');
             for (int y = 6; y < 26; y += 2)
                 c.Rect(8 * 16, y * 16, 80 * 16, 1, PixelArt.Hex("7d786f"));
             Add(c, Vector2.zero, "ground_" + GroundPasar);
@@ -323,12 +328,153 @@ namespace PixelAdventure.LifeSim
 
         static RectInt T(int x, int y, int w, int h) => new RectInt(x, y, w, h);
 
-        static void Pavement(PixelCanvas c, int x, int y, int w, int h)
+        /// <summary>
+        /// Taman Pelangi: jalan setapak berpaving menuju alun-alun air mancur di tengah (cincin
+        /// di sekeliling air mancur), dan lantai karet berwarna di area bermain anak.
+        /// </summary>
+        static void ParkPaths(PixelCanvas c)
         {
-            c.Rect(x, y, w, h, PixelArt.Hex("b8b2a5"));
-            for (int iy = y + 3; iy < y + h; iy += 8)
-                for (int ix = x + 3; ix < x + w; ix += 8)
-                    c.Rect(ix, iy, 1, 1, PixelArt.Hex("8d887e"));
+            Color32 pave = PixelArt.Hex("dccba6"), paveDark = PixelArt.Hex("b8a580"), paveLight = PixelArt.Hex("ead9b6");
+            const int cx = 18 * 16, cy = 58 * 16 + 8;
+
+            void PaveRect(int x, int y, int w, int h)
+            {
+                for (int j = 0; j < h; j++)
+                    for (int i = 0; i < w; i++)
+                    {
+                        int px = x + i, py = y + j;
+                        bool edge = i == 0 || j == 0 || i == w - 1 || j == h - 1;
+                        bool joint = px % 8 == 0 || py % 8 == 0;
+                        c.Set(px, py, edge ? paveDark : joint ? Color32.Lerp(pave, paveDark, 0.5f) : ((px / 8 + py / 8) % 3 == 0 ? paveLight : pave));
+                    }
+            }
+
+            // jalan setapak lurus: dari bawah (pintu taman), kiri, kanan (ke masjid), dan atas
+            PaveRect(17 * 16 + 8, 47 * 16, 16, 8 * 16);
+            PaveRect(4 * 16, 58 * 16, 10 * 16, 16);
+            PaveRect(22 * 16, 58 * 16, 11 * 16, 16);
+            PaveRect(17 * 16 + 8, 61 * 16, 16, 7 * 16);
+
+            // cincin paving di sekeliling air mancur
+            for (int y = cy - 64; y <= cy + 64; y++)
+                for (int x = cx - 96; x <= cx + 96; x++)
+                {
+                    float dx = (x - cx) / 86f, dy = (y - cy) / 60f;
+                    float r = dx * dx + dy * dy;
+                    float rIn = ((x - cx) / 64f) * ((x - cx) / 64f) + ((y - cy) / 40f) * ((y - cy) / 40f);
+                    if (r > 1f) continue;
+                    if (rIn < 1f && rIn > 0.55f) { c.Set(x, y, Grass); continue; }     // rumput dalam cincin
+                    bool joint = x % 8 == 0 || y % 8 == 0;
+                    Color32 col = joint ? Color32.Lerp(pave, paveDark, 0.5f) : pave;
+                    if (r > 0.9f || (rIn >= 1f && rIn < 1.08f) || (rIn <= 0.55f && rIn > 0.48f)) col = paveDark;
+                    c.Set(x, y, col);
+                }
+
+            // lantai karet area bermain (oranye & biru berselang)
+            int mx = 23 * 16 + 8, my = 52 * 16 + 10, mw = 6 * 16, mh = 5 * 16;
+            for (int j = 0; j < mh; j++)
+                for (int i = 0; i < mw; i++)
+                {
+                    bool edge = i < 2 || j < 2 || i >= mw - 2 || j >= mh - 2;
+                    Color32 col = edge ? PixelArt.Hex("8a6a4a")
+                        : ((i / 16 + j / 16) % 2 == 0 ? PixelArt.Hex("e8935a") : PixelArt.Hex("5aa0d0"));
+                    if (!edge && Hash(mx + i, my + j) % 23 == 0) col = Color32.Lerp(col, Color.white, 0.3f);
+                    c.Set(mx + i, my + j, col);
+                }
+        }
+
+        /// <summary>Petak sudut trotoar di persimpangan: paving + kanstin di dua sisi jalan + ubin kuning peringatan.</summary>
+        static void PavementCorner(PixelCanvas c, int x, int y, int s, bool roadTop, bool roadRight)
+        {
+            Color32 paveA = PixelArt.Hex("c4bdb0"), joint = PixelArt.Hex("8f897d");
+            Color32 kerbBlack = PixelArt.Hex("2e2f33"), kerbWhite = PixelArt.Hex("eeece4");
+            Color32 tactile = PixelArt.Hex("f0c02c"), tactileDot = PixelArt.Hex("c8960f");
+            for (int j = 0; j < s; j++)
+                for (int i = 0; i < s; i++)
+                {
+                    int dv = roadTop ? s - 1 - j : j;      // jarak ke jalan (atas/bawah)
+                    int dh = roadRight ? s - 1 - i : i;    // jarak ke jalan (kanan/kiri)
+                    Color32 col = (i % 8 == 0 || j % 4 == 0) ? Color32.Lerp(paveA, joint, 0.55f) : paveA;
+                    // ubin peringatan (titik-titik) di pojok dekat penyeberangan
+                    if (dv >= 4 && dv < 14 && dh >= 4 && dh < 14)
+                        col = ((i + j) % 3 == 0) ? tactileDot : tactile;
+                    if (dv < 4 || dh < 4)
+                    {
+                        int along = dv < 4 ? i : j;
+                        col = (along / 12) % 2 == 0 ? kerbBlack : kerbWhite;
+                    }
+                    c.Set(x + i, y + j, col);
+                }
+        }
+
+        /// <summary>
+        /// Trotoar khas kota Indonesia: kanstin belang hitam-putih di sisi jalan, paving block
+        /// abu-abu bermotif belah ketupat merah bata, jalur kuning pemandu tunanetra di tengah,
+        /// tutup selokan berkala, dan tepi luar yang lebih gelap. <paramref name="roadSide"/>:
+        /// 'T','B','L','R' = sisi trotoar yang berbatasan dengan jalan.
+        /// </summary>
+        static void Pavement(PixelCanvas c, int x, int y, int w, int h, char roadSide)
+        {
+            Color32 paveA = PixelArt.Hex("c4bdb0"), paveB = PixelArt.Hex("b3ac9f");
+            Color32 brick = PixelArt.Hex("b8735a"), brickB = PixelArt.Hex("a8654e");
+            Color32 joint = PixelArt.Hex("8f897d");
+            Color32 kerbBlack = PixelArt.Hex("2e2f33"), kerbWhite = PixelArt.Hex("eeece4");
+            Color32 tactile = PixelArt.Hex("f0c02c"), tactileDot = PixelArt.Hex("c8960f");
+            Color32 edge = PixelArt.Hex("8a8478");
+            Color32 grate = PixelArt.Hex("4a4d52"), grateSlot = PixelArt.Hex("23252a");
+
+            bool horiz = roadSide == 'T' || roadSide == 'B';
+            int len = horiz ? w : h, depth = horiz ? h : w;
+            const int Kerb = 4;
+            int tacV = Kerb + (depth - Kerb) / 2 - 2;       // jalur kuning di tengah trotoar
+
+            for (int u = 0; u < len; u++)
+                for (int v = 0; v < depth; v++)
+                {
+                    Color32 col;
+                    if (v < Kerb)
+                    {
+                        // kanstin: belang 12 px, garis bayangan di sisi dalam
+                        col = (u / 12) % 2 == 0 ? kerbBlack : kerbWhite;
+                        if (v == Kerb - 1) col = Color32.Lerp(col, joint, 0.6f);
+                    }
+                    else if (v >= depth - 2) col = edge;
+                    else if (v >= tacV && v < tacV + 4)
+                    {
+                        col = tactile;
+                        if (v == tacV + 1 || v == tacV + 2) { if (u % 4 == 1) col = tactileDot; }
+                    }
+                    else
+                    {
+                        // paving 8x4 susun bata; motif belah ketupat merah setiap 48 px
+                        int row = (v - Kerb) / 4;
+                        int uu = u + (row % 2) * 4;
+                        bool isJoint = (v - Kerb) % 4 == 0 || uu % 8 == 0;
+                        int blockU = uu / 8;
+                        int dm = Mathf.Abs((blockU % 6) - 3) + Mathf.Abs(row % 6 - 3);
+                        bool red = dm == 3 || dm == 0;
+                        col = red ? ((blockU + row) % 2 == 0 ? brick : brickB)
+                                  : ((blockU * 7 + row * 3) % 5 == 0 ? paveB : paveA);
+                        if (isJoint) col = Color32.Lerp(col, joint, 0.55f);
+                    }
+
+                    // tutup selokan besi setiap 80 px, menempel di belakang kanstin
+                    int gu = u % 80;
+                    if (gu >= 30 && gu < 42 && v >= Kerb && v < Kerb + 6)
+                        col = (v == Kerb || v == Kerb + 5 || gu == 30 || gu == 41) ? grateSlot
+                            : (gu % 3 == 0 ? grateSlot : grate);
+
+                    // u/v -> piksel: v = 0 menempel ke jalan
+                    int px, py;
+                    switch (roadSide)
+                    {
+                        case 'T': px = x + u; py = y + h - 1 - v; break;
+                        case 'B': px = x + u; py = y + v; break;
+                        case 'L': px = x + v; py = y + u; break;
+                        default:  px = x + w - 1 - v; py = y + u; break;   // 'R'
+                    }
+                    c.Set(px, py, col);
+                }
         }
     }
 }

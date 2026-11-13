@@ -188,6 +188,7 @@ namespace PixelAdventure.LifeSim
             float top = h * 0.5f, left = -w * 0.5f;
             float innerL = left + 0.7f, innerW = w - 1.4f;
             SetRect(_profPanel, 0f, 0f, w, h);
+            CloseAt(w * 0.5f, h * 0.5f);
             _profTitle.transform.localPosition = new Vector3(innerL, top - 0.75f, 0f);
             _profHeader.transform.localPosition = new Vector3(innerL + innerW, top - 0.75f, 0f);
             _profHint.transform.localPosition = new Vector3(0f, -top + 0.45f, 0f);

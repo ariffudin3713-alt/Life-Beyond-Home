@@ -165,6 +165,7 @@ namespace PixelAdventure.LifeSim
             float w = Mathf.Min(halfW * 2f - 0.8f, 28f);
             float h = Mathf.Min(halfH * 2f - 0.8f, 15f);
             SetRect(_guideCover, 0f, 0f, w, h);
+            CloseAt(w * 0.5f, h * 0.5f, 2);
 
             float pageTop = h * 0.5f - 0.5f, pageBottom = -h * 0.5f + 1.25f;
             float pageH = pageTop - pageBottom;

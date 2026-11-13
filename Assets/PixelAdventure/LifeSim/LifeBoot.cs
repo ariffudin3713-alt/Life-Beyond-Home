@@ -32,7 +32,7 @@ namespace PixelAdventure.LifeSim
             if (cam.GetComponent<AudioListener>() == null)
                 cam.gameObject.AddComponent<AudioListener>();
 
-            var host = new GameObject("PULANG");
+            var host = new GameObject("Life Beyond Home");
             var game = host.AddComponent<PulangGame>();
             game.Boot(cam);
         }

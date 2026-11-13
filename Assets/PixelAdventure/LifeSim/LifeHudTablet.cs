@@ -17,7 +17,7 @@ namespace PixelAdventure.LifeSim
     /// </summary>
     public partial class LifeHud
     {
-        const int TabletAppsMax = 10;
+        const int TabletAppsMax = 12;
         const int TabletCols = 5;
 
         Transform _tabGroup;
@@ -101,6 +101,7 @@ namespace PixelAdventure.LifeSim
             float w = Mathf.Min(halfW * 2f - 2f, 24f);
             float h = Mathf.Min(halfH * 2f - 1.2f, 14.4f);
             SetRect(_tabBezel, 0f, 0f, w, h);
+            CloseAt(w * 0.5f, h * 0.5f);
 
             float sw = w - 1.3f, sh = h - 1.9f;
             float scy = 0.1f;

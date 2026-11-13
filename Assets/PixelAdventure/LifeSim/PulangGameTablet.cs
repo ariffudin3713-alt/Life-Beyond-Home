@@ -10,11 +10,11 @@ namespace PixelAdventure.LifeSim
     /// </summary>
     public partial class PulangGame
     {
-        enum TabletAction { Profile, Tasks, Inventory, Journal, Phone, Guide, Save, Sound, Home, Close }
+        enum TabletAction { Profile, Tasks, Inventory, Journal, Contacts, Guide, Save, Sound, Home, Close }
 
         static readonly TabletAction[] TabletOrder =
         {
-            TabletAction.Profile, TabletAction.Tasks, TabletAction.Inventory, TabletAction.Journal, TabletAction.Phone,
+            TabletAction.Profile, TabletAction.Tasks, TabletAction.Inventory, TabletAction.Journal, TabletAction.Contacts,
             TabletAction.Guide, TabletAction.Save, TabletAction.Sound, TabletAction.Home, TabletAction.Close,
         };
 
@@ -26,7 +26,8 @@ namespace PixelAdventure.LifeSim
             _state = State.Tablet;
             _hud.SetPrompt(null);
             _tabletMessage = null;
-            GameAudio.Play("click", 0.4f);
+            _tabletIndex = Mathf.Clamp(_tabletIndex, 0, TabletOrder.Length - 1);
+            GameAudio.Play("tablet_on", 0.45f);
             RefreshTablet();
             _inputLock = 0.2f;
         }
@@ -67,16 +68,15 @@ namespace PixelAdventure.LifeSim
                     return App("JURNAL", "app_journal", "4c6bb0", "CATATAN PERJALANAN, STATUS & HUBUNGAN  (J)");
                 case TabletAction.Guide:
                     return App("PANDUAN", "app_guide", "a8754a", "BUKU CARA BERMAIN: KONTROL, MISI, KERJA, TEMPAT, TEMAN  (G)");
-                case TabletAction.Phone:
-                    bool ok = CanPhoneNow(out string why);
-                    return App("TELEPON IBU", "app_phone", "2e8f62", ok ? "HUBUNGI IBU (+5 HUBUNGAN KELUARGA, SEKALI SEHARI)" : why, ok);
+                case TabletAction.Contacts:
+                    return App("KONTAK", "app_contacts", "c0566e", KnownContacts().Count + " ORANG DIKENAL - PROFIL, TELEPON & PESAN (A/D GANTI TAB)");
                 case TabletAction.Save:
-                    return App("SIMPAN", "app_save", "3b6fb6", "SIMPAN PERMAINAN KE SLOT " + (PulangSaveData.ActiveSlot + 1));
+                    return App("SIMPAN", "app_save", "3b6fb6", "PILIH SLOT UNTUK MENYIMPAN (AKTIF: SLOT " + (PulangSaveData.ActiveSlot + 1) + ")");
                 case TabletAction.Sound:
-                    return App(GameAudio.Muted ? "SUARA MATI" : "SUARA ON", "app_sound", "8a63ad",
+                    return App(GameAudio.Muted ? "SUARA OFF" : "SUARA ON", "app_sound", "8a63ad",
                         "NYALAKAN / MATIKAN SUARA  (M)");
                 case TabletAction.Home:
-                    return App("MENU UTAMA", "app_home", "b8503f", "SIMPAN LALU KEMBALI KE MENU UTAMA");
+                    return App("MENU", "app_home", "b8503f", "SIMPAN LALU KEMBALI KE MENU UTAMA");
                 default:
                     return App("TUTUP", "app_close", "5a5550", "KEMBALI BERMAIN  (TAB)");
             }
@@ -139,22 +139,14 @@ namespace PixelAdventure.LifeSim
                     _hud.HideTablet();
                     OpenGuide(true);
                     break;
-                case TabletAction.Phone:
-                    if (!CanPhoneNow(out string why))
-                    {
-                        GameAudio.Play("error", 0.4f);
-                        _tabletMessage = why;
-                        RefreshTablet();
-                        return;
-                    }
-                    CloseTablet();
-                    CallMother();
+                case TabletAction.Contacts:
+                    _hud.HideTablet();
+                    _contactMsg = null;
+                    OpenContacts(ContactTab.Profil);
                     break;
                 case TabletAction.Save:
-                    D.Save();
-                    GameAudio.Play("checkpoint", 0.5f);
-                    _tabletMessage = "TERSIMPAN DI SLOT " + (PulangSaveData.ActiveSlot + 1) + " - " + D.savedAt;
-                    RefreshTablet();
+                    _hud.HideTablet();
+                    OpenSaveSlotMenu();
                     break;
                 case TabletAction.Sound:
                     GameAudio.ToggleMute();
@@ -173,6 +165,7 @@ namespace PixelAdventure.LifeSim
         void CloseTablet()
         {
             _hud.HideTablet();
+            GameAudio.Play("tablet_off", 0.4f);
             _state = State.Playing;
             _returnToTablet = false;
             _inputLock = 0.15f;

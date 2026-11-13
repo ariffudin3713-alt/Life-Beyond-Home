@@ -363,10 +363,16 @@ namespace PixelAdventure.LifeSim
             }
         }
 
+        static int _cancelFrame = -1;
+
+        /// <summary>Tombol X di layar diklik: dianggap sama dengan ESC pada frame ini.</summary>
+        public static void InjectCancel() => _cancelFrame = Time.frameCount;
+
         public static bool CancelPressed
         {
             get
             {
+                if (_cancelFrame == Time.frameCount) return true;
 #if ENABLE_INPUT_SYSTEM
                 Keyboard kb = Keyboard.current;
                 Gamepad pad = Gamepad.current;
@@ -413,6 +419,25 @@ namespace PixelAdventure.LifeSim
                 return key || button;
 #elif ENABLE_LEGACY_INPUT_MANAGER
                 return Input.GetKeyDown(KeyCode.J);
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>V / tekan stik kanan gamepad: panggil atau parkir kendaraan pribadi.</summary>
+        public static bool VehiclePressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                Keyboard kb = Keyboard.current;
+                Gamepad pad = Gamepad.current;
+                bool key = kb != null && kb.vKey.wasPressedThisFrame;
+                bool button = pad != null && pad.rightStickButton.wasPressedThisFrame;
+                return key || button;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+                return Input.GetKeyDown(KeyCode.V);
 #else
                 return false;
 #endif

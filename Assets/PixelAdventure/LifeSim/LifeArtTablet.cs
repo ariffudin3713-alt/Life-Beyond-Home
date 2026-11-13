@@ -37,6 +37,21 @@ namespace PixelAdventure.LifeSim
             c.Set(8, 13, PixelArt.Hex("e9e2c9"));
             Add(c, Center, "app_phone");
 
+            c = Icon();                                       // KONTAK: kartu nama berpotret
+            Outlined(c, 1, 3, 14, 10, PixelArt.Hex("fff1d6"), IconInk);
+            c.Disc(5f, 9f, 2f, PixelArt.Hex("f2c5a0"));
+            c.Rect(3, 4, 5, 3, PixelArt.Hex("c0566e"));
+            c.Rect(9, 9, 5, 1, PixelArt.Hex("8a9098")); c.Rect(9, 7, 4, 1, PixelArt.Hex("8a9098")); c.Rect(9, 5, 5, 1, PixelArt.Hex("8a9098"));
+            Add(c, Center, "app_contacts");
+
+            c = Icon();                                       // PESAN: dua gelembung obrolan
+            Outlined(c, 1, 6, 10, 8, PixelArt.Hex("fff1d6"), IconInk);
+            c.Rect(3, 5, 2, 2, IconInk); c.Rect(3, 5, 1, 1, PixelArt.Hex("fff1d6"));
+            c.Rect(3, 10, 6, 1, PixelArt.Hex("8a9098")); c.Rect(3, 8, 4, 1, PixelArt.Hex("8a9098"));
+            Outlined(c, 7, 1, 8, 6, PixelArt.Hex("7fd486"), IconInk);
+            c.Rect(9, 3, 4, 1, PixelArt.Hex("2e8f62"));
+            Add(c, Center, "app_messages");
+
             c = Icon();                                       // SIMPAN: disket
             Outlined(c, 2, 2, 12, 12, PixelArt.Hex("3b6fb6"), IconInk);
             c.Rect(5, 9, 6, 4, PixelArt.Hex("dcdde2"));

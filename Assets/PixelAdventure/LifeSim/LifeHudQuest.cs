@@ -121,7 +121,7 @@ namespace PixelAdventure.LifeSim
             // ---------------- penanda untuk setiap tujuan misi
             // Area aman: di bawah panel status atas, di atas teks prompt bawah.
             float minX = -halfW + 0.9f, maxX = halfW - 0.9f;
-            float minY = -halfH + 1.45f, maxY = halfH - 3.75f;
+            float minY = -halfH + 1.45f, maxY = halfH - 4.4f;   // di bawah panel status kiri atas
             float miniRight = _miniEdgeRight + 0.6f, miniTop = _miniEdgeTop + 0.6f; // kotak minimap kiri bawah
 
             for (int i = 0; i < QuestMax; i++)

@@ -161,6 +161,9 @@ namespace PixelAdventure.LifeSim.Pulang
         public LocationId location = LocationId.RumahZidan;
 
         public List<string> inventory = new List<string>();
+        public string vehicle = "";                            // kendaraan yang sedang dinaiki ("" = jalan kaki)
+        public List<string> messages = new List<string>();     // pesan tablet: "NpcId|1 (aku) / 0 (dia)|hari|teks"
+        public List<string> calls = new List<string>();        // telepon terakhir: "NpcId|hari"
         public List<string> skills = new List<string>();      // "skill_<jobId>"
         public int onTimeStreak;
         public float posX = -1f, posY = -1f;

@@ -1,4 +1,4 @@
-# PULANG — Life Beyond Home
+# Life Beyond Home
 
 Game simulasi kehidupan 2D pixel art. Tokoh utama (default **Zidan**, nama bisa
 diganti di awal) merantau dari **Desa Suka Makmur** ke **Kota Jogokerto** untuk
@@ -21,6 +21,7 @@ Semua sprite, UI, musik, dan efek suara dibuat saat runtime, tanpa aset eksterna
 | Jalan | `WASD` / panah |
 | Bicara, pilih, lanjut | `E`, `Spasi`, `Enter` |
 | Jurnal | `J` |
+| Panggil / simpan kendaraan | `V` |
 | Jeda | `P` / `Esc` |
 | Suara | `M` |
 | Mulai baru (di judul) | `N` dua kali |
@@ -57,6 +58,9 @@ Cemara, terhubung lewat terminal/halte bus (Rp4.000–Rp5.000, 30 menit di dalam
   Pekerjaan non-sederhana butuh kursus skill di perpustakaan.
 - **Level**: naik dari pengalaman kerja.
 - **Telepon Ibu**: sekali sehari dari kost, sampai kabar duka.
+- **Kendaraan pribadi**: sepeda, skuter matic, sepeda motor, dan mobil dari Dealer Kendaraan Maju.
+  Disimpan di inventori (tab KENDARAAN); tekan `V` di luar ruangan untuk memanggil atau
+  menyimpannya. Bisa dikendarai sendiri ke wilayah lain dari terminal (bensin / gratis untuk sepeda).
 
 ## Struktur kode
 

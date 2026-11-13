@@ -45,6 +45,16 @@ namespace PixelAdventure.LifeSim.Pulang
 
         // Penginapan (satu di setiap wilayah) — ditaruh di akhir agar urutan simpanan lama tetap sama
         PenginapanDesa, PenginapanKota, PenginapanCempaka, PenginapanPasar, PenginapanPantai,
+
+        // Toko khusus (barang dipisah sesuai kegunaan) & tempat makan khas Indonesia
+        DealerKendaraan, TokoElektronik, TokoBuku, TokoPancing,
+        GerobakBakso, Angkringan, WarungPecelLele, KiosEsKelapa,
+
+        // Ciri khas Indonesia (2): pecel lele di kota         GerobakBakso, Angkringan, WarungPecelLele, KiosEsKelapa, warung kopi desa
+        PecelLeleKota, WarkopDesa,
+
+        // Tempat ibadah (bisa dimasuki & dipakai beribadah)
+        MasjidKota, GerejaKota,
     }
 
     public enum Chapter { Prolog = 0, Ch1 = 1, Ch2 = 2, Ch3 = 3, Ch4 = 4, Ch5 = 5, Ch6 = 6, Ending = 7 }
@@ -134,6 +144,22 @@ namespace PixelAdventure.LifeSim.Pulang
             new LocationDef(LocationId.PenginapanCempaka, Region.KampungCempaka, "Penginapan Cempaka",       Chapter.Ch1),
             new LocationDef(LocationId.PenginapanPasar,   Region.PasarRamaiJaya, "Losmen Ramai Jaya",        Chapter.Ch1),
             new LocationDef(LocationId.PenginapanPantai,  Region.PantaiCemara,   "Penginapan Pantai Cemara", Chapter.Ch2),
+
+            // ---- Toko khusus: kendaraan, elektronik, buku, perlengkapan memancing
+            new LocationDef(LocationId.DealerKendaraan, Region.KotaJogokerto, "Dealer Kendaraan Maju", Chapter.Ch1),
+            new LocationDef(LocationId.TokoElektronik,  Region.KotaJogokerto, "Toko Elektronik Cahaya", Chapter.Ch1),
+            new LocationDef(LocationId.TokoBuku,        Region.KotaJogokerto, "Toko Buku Pelita",       Chapter.Ch1),
+            new LocationDef(LocationId.TokoPancing,     Region.PantaiCemara,  "Toko Pancing Bahari",    Chapter.Ch2),
+
+            // ---- Tempat makan khas Indonesia (gerobak / tenda, langsung dari luar)
+            new LocationDef(LocationId.GerobakBakso,    Region.KotaJogokerto,  "Bakso Pak Kumis",        Chapter.Ch1),
+            new LocationDef(LocationId.Angkringan,      Region.KampungCempaka, "Angkringan Mbah Darmo",  Chapter.Ch1),
+            new LocationDef(LocationId.WarungPecelLele, Region.PasarRamaiJaya, "Pecel Lele Lamongan",    Chapter.Ch1),
+            new LocationDef(LocationId.KiosEsKelapa,    Region.PantaiCemara,   "Es Kelapa Muda",         Chapter.Ch2),
+            new LocationDef(LocationId.PecelLeleKota,   Region.KotaJogokerto,  "Pecel Lele Cak Mamat",   Chapter.Ch1),
+            new LocationDef(LocationId.WarkopDesa,      Region.DesaSukaMakmur, "Warkop Bang Udin",       Chapter.Prolog),
+            new LocationDef(LocationId.MasjidKota,      Region.KotaJogokerto,  "Masjid Al-Ikhlas",       Chapter.Ch1),
+            new LocationDef(LocationId.GerejaKota,      Region.KotaJogokerto,  "Gereja Kasih Karunia",   Chapter.Ch1),
         };
 
         /// <summary>Tarif semalam di penginapan (energi pulih penuh, bangun pukul 06.00).</summary>
