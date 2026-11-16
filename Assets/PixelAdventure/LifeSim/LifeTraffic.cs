@@ -104,6 +104,8 @@ namespace PixelAdventure.LifeSim
         {
             // Selalu acak: posisi awal, arah, dan kecepatan pejalan kaki berbeda setiap kali dimainkan.
             startT = Random.value;
+            // Warga diacak dari semua karakter sisa spritesheet agar kota terasa ramai & beragam.
+            if (castId.StartsWith("warga")) castId = LifeArt.RandomWarga();
             speed *= Random.Range(0.8f, 1.2f);
             AddWalkerAt(castId, a, b, speed, startT);
         }

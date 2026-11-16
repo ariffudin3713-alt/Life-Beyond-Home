@@ -6,9 +6,9 @@ namespace PixelAdventure.LifeSim
     public partial class LifeHud
     {
         /// <summary>Lebar satu huruf PixelFont skala 1 (unit).</summary>
-        const float UiCharW = 6f / 16f;
+        const float UiCharW = PixelFont.CharW;
         /// <summary>Jarak baris teks skala 1 (unit).</summary>
-        const float UiLine = 0.5f;
+        const float UiLine = 0.62f;   // tinggi huruf 0,56 + celah (dulu 0,5: baris saling menempel)
 
         /// <summary>Jumlah huruf skala <paramref name="scale"/> yang muat di lebar <paramref name="width"/>.</summary>
         static int CharsFor(float width, int scale = 1) => Mathf.Max(1, Mathf.FloorToInt(width / (UiCharW * scale)));

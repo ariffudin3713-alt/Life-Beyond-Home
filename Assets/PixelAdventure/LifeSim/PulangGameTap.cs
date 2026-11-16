@@ -28,6 +28,9 @@ namespace PixelAdventure.LifeSim
         {
             if (!LifeInput.PointerTapped || _inputLock > 0f) return false;
             if (_hud.GuideButtonClicked()) { OpenGuide(false); return true; }
+            if (_hud.MinimapClicked()) { OpenWorldMap(false); return true; }
+            if (_hud.PointerClick(UiHit.Toolbar, out int tool)) { RunToolbar(tool); return true; }
+            if (_hud.PointerOverUi) return false;   // klik di atas panel HUD tidak menjadi "jalan ke sini"
 
             Vector2 tap = _cam.ScreenToWorldPoint(LifeInput.PointerPosition);
             bool run = Time.unscaledTime - _lastTapTime < DoubleTapTime &&

@@ -18,7 +18,7 @@ namespace PixelAdventure.LifeSim
         WorkTheme _wgTheme;
         int _wgRounds, _wgRound, _wgStreak, _wgBestStreak, _wgTier;
         float _wgTimer, _wgTimerMax, _wgPause, _wgFeedbackT;
-        bool _wgResolved;
+        bool _wgResolved, _wgShiftQuit;
 
         // Tepat waktu
         float _wgMarker, _wgDir = 1f, _wgZone, _wgZoneVel;
@@ -45,6 +45,7 @@ namespace PixelAdventure.LifeSim
             _wgRounds = _wgTheme.Rounds;
             _wgRound = 0;
             _wgStreak = _wgBestStreak = 0;
+            _wgShiftQuit = false;
             _wgQuestionBag.Clear();
             _wgTaskBag.Clear();
             _hud.ShowWorkGame(_wgTheme.Title, _wgTheme.Instruction, _wgTheme.Icon, _wgTheme.Game, _wgTheme.Target);
@@ -131,6 +132,24 @@ namespace PixelAdventure.LifeSim
             // Umpan balik memudar; jeda singkat antar ronde.
             if (_wgFeedbackT > 0f) _wgFeedbackT = Mathf.Max(0f, _wgFeedbackT - dt);
             _hud.WorkFeedback(_lastFeedback ?? " ", _lastFeedbackGood, Mathf.Clamp01(_wgFeedbackT / 0.6f));
+
+            // ESC / tombol X: berhenti kerja lebih awal. Ronde yang belum dimainkan dihitung gagal.
+            if (LifeInput.CancelPressed && _inputLock <= 0f)
+            {
+                GameAudio.Play("click", 0.4f);
+                if (_workHelp)
+                {
+                    // Bantuan bengkel (side quest) tidak selesai bila ditinggal; bisa diulang nanti.
+                    _hud.HideWork();
+                    _state = State.Playing;
+                    Say(" ", "Kamu berhenti membantu di bengkel. Bisa dicoba lagi nanti.");
+                    return;
+                }
+                _wgShiftQuit = true;
+                FinishShift();
+                return;
+            }
+
             if (_wgResolved)
             {
                 _wgPause -= dt;
@@ -165,7 +184,7 @@ namespace PixelAdventure.LifeSim
                         if (_wgZone < 0.15f || _wgZone > 0.85f) { _wgZoneVel = -_wgZoneVel; _wgZone = Mathf.Clamp(_wgZone, 0.15f, 0.85f); }
                         if (Random.value < dt * 0.6f) _wgZoneVel = -_wgZoneVel;      // ikan berbalik arah
                     }
-                    if (!locked && LifeInput.InteractPressed)
+                    if (!locked && (LifeInput.InteractPressed || WorkTapped()))
                         ResolveWorkRound(Mathf.Abs(_wgMarker - _wgZone) <= _wgTheme.ZoneHalf, null);
                     break;
                 }
@@ -175,7 +194,12 @@ namespace PixelAdventure.LifeSim
                     {
                         if (LifeInput.UpPressed) { _wgSel = (_wgSel + _wgOpts.Length - 1) % _wgOpts.Length; GameAudio.Play("click", 0.3f); }
                         if (LifeInput.DownPressed) { _wgSel = (_wgSel + 1) % _wgOpts.Length; GameAudio.Play("click", 0.3f); }
-                        if (LifeInput.InteractPressed) ResolveWorkRound(_wgSel == _wgAnswer, null);
+                        // Kursor: arahkan = pilih jawaban, klik = jawab.
+                        if (_hud.PointerHover(UiHit.WorkChoice, out int hv) && hv != _wgSel && hv < _wgOpts.Length)
+                        { _wgSel = hv; GameAudio.Play("click", 0.25f); }
+                        bool clicked = _hud.PointerClick(UiHit.WorkChoice, out int pick) && pick < _wgOpts.Length;
+                        if (clicked) _wgSel = pick;
+                        if (LifeInput.InteractPressed || clicked) ResolveWorkRound(_wgSel == _wgAnswer, null);
                     }
                     break;
 
@@ -183,6 +207,7 @@ namespace PixelAdventure.LifeSim
                     if (!locked)
                     {
                         int pressed = LifeInput.UpPressed ? 0 : LifeInput.RightPressed ? 1 : LifeInput.DownPressed ? 2 : LifeInput.LeftPressed ? 3 : -1;
+                        if (pressed < 0 && _hud.PointerClick(UiHit.WorkArrow, out int arrow)) pressed = arrow;   // tombol panah di layar
                         if (pressed >= 0)
                         {
                             if (pressed == _wgSeq[_wgSeqPos])
@@ -198,7 +223,7 @@ namespace PixelAdventure.LifeSim
 
                 case WorkGame.Mash:
                     _wgGauge = Mathf.Max(0f, _wgGauge - dt * 0.12f);
-                    if (!locked && LifeInput.InteractPressed)
+                    if (!locked && (LifeInput.InteractPressed || WorkTapped()))
                     {
                         _wgGauge += 1f / _wgNeed;
                         GameAudio.Play("step_hard", 0.3f, Random.Range(0.9f, 1.15f));
@@ -222,7 +247,9 @@ namespace PixelAdventure.LifeSim
                     var move = new Vector2(LifeInput.X, LifeInput.Y);
                     _wgCross += new Vector2(move.x * 0.55f, move.y * 1.5f) * dt;
                     _wgCross = new Vector2(Mathf.Clamp01(_wgCross.x), Mathf.Clamp01(_wgCross.y));
-                    if (!locked && LifeInput.InteractPressed)
+                    // Mouse: bidikan langsung mengikuti kursor di dalam area bidik.
+                    if (_hud.PointerMoved && _hud.PointerIn(UiHit.WorkAim, out Vector2 aim)) _wgCross = aim;
+                    if (!locked && (LifeInput.InteractPressed || WorkTapped()))
                     {
                         Vector2 d = _wgCross - _wgTarget;
                         d.y *= 0.3f;                       // area lebih lebar daripada tinggi

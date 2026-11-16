@@ -10,13 +10,16 @@ namespace PixelAdventure.LifeSim
     /// </summary>
     public partial class PulangGame
     {
-        enum TabletAction { Profile, Tasks, Inventory, Journal, Contacts, Guide, Save, Sound, Home, Close }
+        enum TabletAction { Profile, Tasks, Inventory, Journal, Contacts, Guide, Map, Save, Graphics, Sound, Home, Close }
 
         static readonly TabletAction[] TabletOrder =
         {
             TabletAction.Profile, TabletAction.Tasks, TabletAction.Inventory, TabletAction.Journal, TabletAction.Contacts,
-            TabletAction.Guide, TabletAction.Save, TabletAction.Sound, TabletAction.Home, TabletAction.Close,
+            TabletAction.Map, TabletAction.Guide, TabletAction.Save, TabletAction.Graphics, TabletAction.Sound,
+            TabletAction.Home, TabletAction.Close,
         };
+
+        const int TabletGridCols = 6;   // sama dengan LifeHud.TabletCols
 
         int _tabletIndex;
         string _tabletMessage;
@@ -63,18 +66,22 @@ namespace PixelAdventure.LifeSim
                     return App("TUGAS", "app_tasks", "4fae62", "DAFTAR MISI: BISA, SUDAH, BELUM DIKERJAKAN  (T)");
                 case TabletAction.Inventory:
                     int count = D.inventory.Count;
-                    return App("INVENTORI", "app_bag", "c8794a", count + " BARANG DI TAS - MAKANAN, HADIAH, BARANG MISI  (I)");
+                    return App("TAS", "app_bag", "c8794a", "INVENTORI: " + count + " BARANG - MAKANAN, HADIAH, BARANG MISI  (I)");
                 case TabletAction.Journal:
                     return App("JURNAL", "app_journal", "4c6bb0", "CATATAN PERJALANAN, STATUS & HUBUNGAN  (J)");
                 case TabletAction.Guide:
                     return App("PANDUAN", "app_guide", "a8754a", "BUKU CARA BERMAIN: KONTROL, MISI, KERJA, TEMPAT, TEMAN  (G)");
                 case TabletAction.Contacts:
                     return App("KONTAK", "app_contacts", "c0566e", KnownContacts().Count + " ORANG DIKENAL - PROFIL, TELEPON & PESAN (A/D GANTI TAB)");
+                case TabletAction.Map:
+                    return App("PETA", "app_map", "4f9a6a", "SEMUA WILAYAH, ARAH KE WILAYAH LAIN & DAFTAR TEMPAT  (F)");
                 case TabletAction.Save:
                     return App("SIMPAN", "app_save", "3b6fb6", "PILIH SLOT UNTUK MENYIMPAN (AKTIF: SLOT " + (PulangSaveData.ActiveSlot + 1) + ")");
+                case TabletAction.Graphics:
+                    return App("GRAFIK", "app_display", "3f8f8a", "LAYAR, TAMPILAN, PERFORMA & SUARA - " + LifeGraphics.FpsLabel);
                 case TabletAction.Sound:
-                    return App(GameAudio.Muted ? "SUARA OFF" : "SUARA ON", "app_sound", "8a63ad",
-                        "NYALAKAN / MATIKAN SUARA  (M)");
+                    return App(GameAudio.Muted ? "SENYAP" : "SUARA", "app_sound", "8a63ad",
+                        GameAudio.Muted ? "SUARA MATI - BUKA UNTUK MENYALAKAN  (M)" : "SUARA NYALA - BUKA UNTUK MEMATIKAN  (M)");
                 case TabletAction.Home:
                     return App("MENU", "app_home", "b8503f", "SIMPAN LALU KEMBALI KE MENU UTAMA");
                 default:
@@ -99,7 +106,7 @@ namespace PixelAdventure.LifeSim
             }
 
             int n = TabletOrder.Length;
-            int cols = 5;
+            int cols = TabletGridCols;
             int move = 0;
             if (LifeInput.LeftPressed) move = -1;
             else if (LifeInput.RightPressed) move = 1;
@@ -114,7 +121,18 @@ namespace PixelAdventure.LifeSim
                 return;
             }
 
-            if (!LifeInput.InteractPressed) return;
+            // Kursor: arahkan = pilih aplikasi, klik = buka.
+            if (_hud.PointerHover(UiHit.TabletApp, out int hover) && hover != _tabletIndex && hover < n)
+            {
+                _tabletIndex = hover;
+                _tabletMessage = null;
+                GameAudio.Play("click", 0.25f);
+                RefreshTablet();
+            }
+            bool clicked = _hud.PointerClick(UiHit.TabletApp, out int pick) && pick < n;
+            if (clicked) _tabletIndex = pick;
+
+            if (!LifeInput.InteractPressed && !clicked) return;
             switch (TabletOrder[_tabletIndex])
             {
                 case TabletAction.Profile:
@@ -144,9 +162,17 @@ namespace PixelAdventure.LifeSim
                     _contactMsg = null;
                     OpenContacts(ContactTab.Profil);
                     break;
+                case TabletAction.Map:
+                    _hud.HideTablet();
+                    OpenWorldMap(true);
+                    break;
                 case TabletAction.Save:
                     _hud.HideTablet();
                     OpenSaveSlotMenu();
+                    break;
+                case TabletAction.Graphics:
+                    _hud.HideTablet();
+                    OpenSettingsMenu(() => OpenTabletWith(null));
                     break;
                 case TabletAction.Sound:
                     GameAudio.ToggleMute();

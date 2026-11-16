@@ -71,6 +71,7 @@ namespace PixelAdventure.LifeSim
                 Vector2 p = _closeAt.Value + new Vector2(-0.12f, -0.12f);
                 _closeBtn.transform.localPosition = new Vector3(p.x, p.y, 0f);
                 _closeRect = new Rect(p.x - CloseHit * 0.5f, p.y - CloseHit * 0.5f, CloseHit, CloseHit);
+                Hit(UiHit.Close, 0, _closeRect, 9);
                 bool hover = _cam != null && _closeRect.Contains(PointerLocal());
                 float pop = hover ? 1.12f : 1f;
                 _closeBtn.sprite = PixelArt.Get(hover ? "lc_btn_close_hover" : "lc_btn_close");

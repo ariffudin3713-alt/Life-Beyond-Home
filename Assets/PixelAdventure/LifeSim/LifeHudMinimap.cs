@@ -5,12 +5,13 @@ using UnityEngine;
 namespace PixelAdventure.LifeSim
 {
     /// <summary>
-    /// Minimap kecil di kiri bawah yang jelas:
-    /// - warna tanah per wilayah, jalan sesuai bentuk asli peta, laut di Pantai Cemara;
-    /// - kotak putih = area yang sedang terlihat di layar;
-    /// - pemain = panah besar bergaris tepi gelap;
-    /// - setiap penanda punya garis tepi; tujuan misi lebih besar dan berdenyut;
-    /// - legenda warna di bawah peta.
+    /// Minimap kecil di kiri bawah, tersusun dari atas ke bawah:
+    /// 1) judul wilayah (ketuk minimap / tekan F = buka peta besar);
+    /// 2) peta: warna tanah per wilayah, jalan sesuai bentuk asli, laut di Pantai Cemara,
+    ///    kotak putih = area layar, pemain = panah bergaris tepi, tujuan misi berdenyut,
+    ///    panah di tepi kiri/kanan = jalan keluar ke wilayah sebelah;
+    /// 3) baris "◀ WILAYAH KIRI ... WILAYAH KANAN ▶";
+    /// 4) garis pemisah, baris tujuan misi + jarak, dan petunjuk "F: BUKA PETA" (legenda warna ada di layar PETA).
     /// </summary>
     public partial class LifeHud
     {
@@ -33,11 +34,32 @@ namespace PixelAdventure.LifeSim
         readonly Color[] _miniDotColors = new Color[MiniMax];
         readonly bool[] _miniDotStars = new bool[MiniMax];
         readonly bool[] _miniDotImportant = new bool[MiniMax];
-        SpriteRenderer[] _legendSwatches, _legendLabels;
+
+        // Jalan keluar ke wilayah sebelah: panah di tepi peta + nama wilayah di bawah peta.
+        static readonly Color MiniExitOpen = new Color(1f, 0.84f, 0.40f, 1f);
+        static readonly Color MiniExitLocked = new Color(0.55f, 0.52f, 0.60f, 1f);
+        const float MiniExitRowH = 0.58f;
+        readonly SpriteRenderer[] _miniExitArrow = new SpriteRenderer[2];
+        readonly SpriteRenderer[] _miniExitArrowOutline = new SpriteRenderer[2];
+        readonly SpriteRenderer[] _miniExitText = new SpriteRenderer[2];
+        readonly string[] _miniExitName = new string[2];
+        readonly bool[] _miniExitOpen = new bool[2];
+        readonly string[] _miniExitBuilt = new string[2];
+        SpriteRenderer _miniDivider;
+        Rect _miniRect;
+
+        // Penunjuk arah misi di minimap: garis putus-putus pemain -> tujuan terdekat,
+        // panah kecil di samping pemain, dan baris "tujuan + jarak" di bawah legenda.
+        const int MiniGuideDots = 28;
+        const float MiniGuideRowH = 0.58f;
+        readonly SpriteRenderer[] _miniGuideDots = new SpriteRenderer[MiniGuideDots];
+        SpriteRenderer _miniGuideArrow, _miniGuideArrowOutline, _miniGuideIcon, _miniGuideText;
+        string _miniGuideCache;
         int _miniDotCount;
         Vector2 _miniPlayerPos;
         int _miniPlayerDir;
         string _lastMiniTitle;
+        int _miniTitleChars = -1;
         Region _miniRegion = (Region)(-1);
 
         /// <summary>Batas minimap (koordinat HUD) untuk penunjuk misi agar tidak menimpanya.</summary>
@@ -76,7 +98,8 @@ namespace PixelAdventure.LifeSim
             _miniPanel = Panel(_minimapGroup, "MiniPanel", "lc_panel_soft", 3990);
             _miniPanel.color = new Color(1f, 1f, 1f, 0.96f);
             _miniTitle = Text(_minimapGroup, "MiniTitle", " ", 1, Ink, new Vector2(0f, 0.5f), 4000);
-            _miniNorth = Text(_minimapGroup, "MiniNorth", "▲ U", 1, Gold, new Vector2(1f, 0.5f), 4000);
+            _miniNorth = Text(_minimapGroup, "MiniMapKey", "F: BUKA PETA", 1, Gold, new Vector2(0.5f, 0.5f), 4000);
+            _miniDivider = Solid(_minimapGroup, "MiniDivider", new Color(1f, 1f, 1f, 0.10f), 3991);
 
             _miniFrame = Solid(_minimapGroup, "MiniFrame", MiniOutline, 3991);
             _miniGround = Solid(_minimapGroup, "MiniGround", Color.gray, 3992);
@@ -94,24 +117,39 @@ namespace PixelAdventure.LifeSim
                 _miniDotOutlines[i].gameObject.SetActive(false);
             }
 
+            for (int i = 0; i < MiniGuideDots; i++)
+            {
+                _miniGuideDots[i] = Solid(_minimapGroup, "MiniGuideDot" + i, LegendGoal, 3995);
+                _miniGuideDots[i].gameObject.SetActive(false);
+            }
+            _miniGuideArrowOutline = Make(_minimapGroup, PixelArt.Get("lc_icon_direction"), "MiniGuideArrowOutline", 3998);
+            _miniGuideArrowOutline.color = MiniOutline;
+            _miniGuideArrow = Make(_minimapGroup, PixelArt.Get("lc_icon_direction"), "MiniGuideArrow", 3999);
+            _miniGuideIcon = Make(_minimapGroup, PixelArt.Get("lc_icon_direction"), "MiniGuideIcon", 3999);
+            _miniGuideIcon.transform.localScale = Vector3.one * 0.32f;
+            _miniGuideText = Text(_minimapGroup, "MiniGuideText", " ", 1, LegendGoal, new Vector2(0f, 0.5f), 4000);
+            _miniGuideArrow.gameObject.SetActive(false);
+            _miniGuideArrowOutline.gameObject.SetActive(false);
+            _miniGuideIcon.gameObject.SetActive(false);
+            _miniGuideText.gameObject.SetActive(false);
+
+            for (int i = 0; i < 2; i++)
+            {
+                _miniExitArrowOutline[i] = Make(_minimapGroup, PixelArt.Get("lc_icon_direction"), "MiniExitOutline" + i, 3998);
+                _miniExitArrowOutline[i].color = MiniOutline;
+                _miniExitArrow[i] = Make(_minimapGroup, PixelArt.Get("lc_icon_direction"), "MiniExit" + i, 3999);
+                _miniExitText[i] = Text(_minimapGroup, "MiniExitText" + i, " ", 1, MiniExitOpen,
+                    new Vector2(i == 0 ? 0f : 1f, 0.5f), 4000);
+                Show(_miniExitArrow[i], false);
+                Show(_miniExitArrowOutline[i], false);
+                Show(_miniExitText[i], false);
+            }
+
             _miniPlayerOutline = Make(_minimapGroup, PixelArt.Get("lc_icon_direction"), "MiniPlayerOutline", 3998);
             _miniPlayerOutline.color = MiniOutline;
             _miniPlayer = Make(_minimapGroup, PixelArt.Get("lc_icon_direction"), "MiniPlayer", 3999);
 
-            // Legenda: dua baris.
-            string[] names = { "MISI", "KERJA", "TEMAN", "TEMPAT" };
-            Color[] colors = { LegendGoal, Color.white, LegendGirl, LegendPlace };
-            _legendSwatches = new SpriteRenderer[names.Length];
-            _legendLabels = new SpriteRenderer[names.Length];
-            for (int i = 0; i < names.Length; i++)
-            {
-                bool star = i == 1;
-                _legendSwatches[i] = star
-                    ? Make(_minimapGroup, PixelArt.Get("lc_icon_star"), "LegendStar", 3999)
-                    : Solid(_minimapGroup, "LegendSwatch" + i, colors[i], 3999);
-                _legendSwatches[i].transform.localScale = Vector3.one * (star ? 0.45f : 0.24f);
-                _legendLabels[i] = Text(_minimapGroup, "Legend" + i, names[i], 1, Soft, new Vector2(0f, 0.5f), 4000);
-            }
+            // Legenda warna ada di layar PETA (F) agar minimap tetap ringkas.
 
             _minimapGroup.gameObject.SetActive(false);
         }
@@ -121,6 +159,22 @@ namespace PixelAdventure.LifeSim
         public void SetMinimapVisible(bool visible)
         {
             if (_minimapGroup != null) _minimapGroup.gameObject.SetActive(visible);
+            if (!visible) { _miniEdgeRight = -999f; _miniEdgeTop = -999f; }   // batas lama tidak dipakai lagi
+        }
+
+        /// <summary>Minimap diketuk / diklik pada frame ini (membuka peta besar).</summary>
+        public bool MinimapClicked()
+        {
+            if (_cam == null || _minimapGroup == null || !_minimapGroup.gameObject.activeInHierarchy || !LifeInput.PointerTapped)
+                return false;
+            return _miniRect.Contains(PointerToHud());
+        }
+
+        /// <summary>Wilayah di balik ujung kiri / kanan peta (null = tidak ada jalan keluar).</summary>
+        public void SetMinimapExits(string left, bool leftOpen, string right, bool rightOpen)
+        {
+            _miniExitName[0] = left; _miniExitOpen[0] = leftOpen;
+            _miniExitName[1] = right; _miniExitOpen[1] = rightOpen;
         }
 
         public void RefreshMinimap(Region region, Vector2 playerPosition, int direction,
@@ -132,7 +186,7 @@ namespace PixelAdventure.LifeSim
             if (!string.IsNullOrEmpty(title) && title != _lastMiniTitle)
             {
                 _lastMiniTitle = title;
-                SetText(_miniTitle, title, Ink, 1, new Vector2(0f, 0.5f));
+                _miniTitleChars = -1;   // dipotong sesuai lebar saat layout
             }
             _miniDotCount = 0;
             if (markers == null) return;
@@ -166,12 +220,22 @@ namespace PixelAdventure.LifeSim
         {
             if (_minimapGroup == null || !_minimapGroup.gameObject.activeSelf) return;
 
-            // Kecil, di pojok kiri bawah layar.
-            float mapW = Mathf.Min(4.8f, halfW * 0.4f);
+            // Kecil, di pojok kiri bawah layar. Susunan (atas -> bawah), semua rata pada tepi peta:
+            //   judul wilayah | peta | ◀ KIRI ..... KANAN ▶ | garis | tujuan misi | F: BUKA PETA
+            const float pad = 0.3f, titleH = 0.66f, rowH = 0.58f;
+            float mapW = Mathf.Min(5.4f, halfW * 0.4f);
             float mapH = mapW * (LifeWorld.Height / LifeWorld.Width);
-            float w = mapW + 0.6f;
-            float titleH = 0.6f, legendH = 1.0f;
-            float h = titleH + mapH + legendH + 0.3f;
+            float w = mapW + pad * 2f;
+
+            // Baris jalan keluar: satu baris bila kedua nama muat, dua baris bila tidak.
+            bool exitL = !string.IsNullOrEmpty(_miniExitName[0]), exitR = !string.IsNullOrEmpty(_miniExitName[1]);
+            int exitChars = (exitL ? _miniExitName[0].Length + 1 : 0) + (exitR ? _miniExitName[1].Length + 1 : 0);
+            int exitRows = !exitL && !exitR ? 0 : (exitL && exitR && (exitChars + 1) * UiCharW > mapW) ? 2 : 1;
+
+            int guide = NearestQuestGoal(out float guideDist);
+            bool guideOn = guide >= 0 && guideDist > 1.6f;
+            int footRows = guideOn ? 2 : 1;
+            float h = titleH + mapH + 0.06f + exitRows * MiniExitRowH + 0.1f + footRows * rowH + 0.14f;
             float left = -halfW + 0.28f;
             float bottom = -halfH + 0.28f;
             float top = bottom + h;
@@ -179,10 +243,22 @@ namespace PixelAdventure.LifeSim
             float cy = bottom + h * 0.5f;
             _miniEdgeRight = left + w;
             _miniEdgeTop = top;
+            _miniRect = new Rect(left, bottom, w, h);
+            if (PlayHitsOn) Hit(UiHit.Minimap, 0, _miniRect, 0);
 
             SetRect(_miniPanel, cx, cy, w, h);
-            _miniTitle.transform.localPosition = new Vector3(cx - w * 0.5f + 0.32f, top - 0.33f, 0f);
-            _miniNorth.transform.localPosition = new Vector3(cx + w * 0.5f - 0.32f, top - 0.33f, 0f);
+            float titleY = top - titleH * 0.5f - 0.02f;
+            _miniTitle.transform.localPosition = new Vector3(left + pad, titleY, 0f);
+            int titleChars = CharsFor(mapW);
+            if (titleChars != _miniTitleChars && !string.IsNullOrEmpty(_lastMiniTitle))
+            {
+                _miniTitleChars = titleChars;
+                string t = _lastMiniTitle;
+                int sp = t.IndexOf(' ');
+                if (t.Length > titleChars && sp > 0) t = t.Substring(sp + 1);   // "PASAR RAMAI JAYA" -> "RAMAI JAYA"
+                if (t.Length > titleChars) t = t.Substring(0, Mathf.Max(1, titleChars - 1)).TrimEnd() + ".";
+                SetText(_miniTitle, t, Ink, 1, new Vector2(0f, 0.5f));
+            }
 
             float mapL = cx - mapW * 0.5f;
             float mapT = top - titleH;
@@ -207,6 +283,49 @@ namespace PixelAdventure.LifeSim
                     SetSolid(_miniSea, cx, (seaB + mapT) * 0.5f, mapW, mapT - seaB);
                 }
             }
+
+            // Jalan keluar: panah di tepi peta (setinggi jalan utama) + nama wilayah di bawah peta.
+            float roadY = PulangWorld.EdgeRoadY.TryGetValue(_miniRegion, out float ry) ? ry : LifeWorld.Height * 0.5f;
+            float arrowY = mapB + mapH * Mathf.Clamp01(roadY / LifeWorld.Height);
+            float exitTop = mapB - 0.06f - MiniExitRowH * 0.5f;
+            float nudge = (Mathf.Sin(_time * 2.5f) * 0.5f + 0.5f) * 0.06f;
+            for (int i = 0; i < 2; i++)
+            {
+                bool on = i == 0 ? exitL : exitR;
+                Show(_miniExitArrow[i], on);
+                Show(_miniExitArrowOutline[i], on);
+                Show(_miniExitText[i], on);
+                if (!on) continue;
+                Color tint = _miniExitOpen[i] ? MiniExitOpen : MiniExitLocked;
+                float side = i == 0 ? -1f : 1f;
+                float ax = (i == 0 ? mapL + 0.2f : mapL + mapW - 0.2f) + side * (_miniExitOpen[i] ? nudge : 0f);
+                float exitAngle = i == 0 ? 90f : -90f;
+                _miniExitArrow[i].color = tint;
+                _miniExitArrow[i].transform.localPosition = new Vector3(ax, arrowY, 0f);
+                _miniExitArrow[i].transform.localRotation = Quaternion.Euler(0f, 0f, exitAngle);
+                _miniExitArrow[i].transform.localScale = Vector3.one * 0.3f;
+                _miniExitArrowOutline[i].transform.localPosition = new Vector3(ax, arrowY, 0f);
+                _miniExitArrowOutline[i].transform.localRotation = Quaternion.Euler(0f, 0f, exitAngle);
+                _miniExitArrowOutline[i].transform.localScale = Vector3.one * 0.4f;
+
+                string label = i == 0 ? "◀" + _miniExitName[0] : _miniExitName[1] + "▶";
+                string key = label + (_miniExitOpen[i] ? "1" : "0");
+                if (key != _miniExitBuilt[i])
+                {
+                    _miniExitBuilt[i] = key;
+                    SetText(_miniExitText[i], label, tint, 1, new Vector2(i == 0 ? 0f : 1f, 0.5f));
+                }
+                float ey = exitRows == 2 && i == 1 ? exitTop - MiniExitRowH : exitTop;
+                _miniExitText[i].transform.localPosition = new Vector3(i == 0 ? mapL : mapL + mapW, ey, 0f);
+            }
+
+            // Garis pemisah, lalu baris bawah: tujuan misi (bila ada) dan petunjuk membuka peta.
+            float footTop = mapB - 0.06f - exitRows * MiniExitRowH;
+            SetSolid(_miniDivider, cx, footTop - 0.04f, mapW, 0.04f);
+            float guideRowY = footTop - 0.1f - rowH * 0.5f;
+            float hintRowY = guideRowY - (guideOn ? rowH : 0f);
+            _miniNorth.transform.localPosition = new Vector3(cx, hintRowY, 0f);
+            SetAlpha(_miniNorth, 0.85f);   // tetap (tidak berkedip)
 
             // Kotak area layar (yang sedang terlihat kamera).
             Rect view = LifeView.Rect;
@@ -269,17 +388,76 @@ namespace PixelAdventure.LifeSim
             _miniPlayerOutline.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
             _miniPlayerOutline.transform.localScale = Vector3.one * 0.55f;
 
-            // Legenda (2 baris x 2 kolom).
-            float legTop = mapB - 0.33f;
-            float colW = mapW * 0.5f;
-            for (int i = 0; i < _legendLabels.Length; i++)
+            LayoutMiniGuide(guideOn ? guide : -1, guideDist, pl, mapL, mapB, mapW, mapH, guideRowY);
+        }
+
+        void LayoutMiniGuide(int goal, float dist, Vector2 pl, float mapL, float mapB, float mapW, float mapH, float rowY)
+        {
+            bool on = goal >= 0;
+            Show(_miniGuideArrow, on);
+            Show(_miniGuideArrowOutline, on);
+            Show(_miniGuideIcon, on);
+            Show(_miniGuideText, on);
+            if (!on)
             {
-                int col = i % 2, row = i / 2;
-                float x = mapL + col * colW + 0.08f;
-                float y = legTop - row * 0.45f;
-                _legendSwatches[i].transform.localPosition = new Vector3(x, y, 0f);
-                _legendLabels[i].transform.localPosition = new Vector3(x + 0.3f, y, 0f);
+                for (int i = 0; i < MiniGuideDots; i++) Show(_miniGuideDots[i], false);
+                return;
             }
+
+            QuestGoal g = _questGoals[goal];
+            Color tint = g.IsJob ? JobArrowTint : LegendGoal;
+            Vector2 target = MapToMini(g.Position, mapL, mapB, mapW, mapH);
+            Vector2 delta = target - pl;
+            float len = delta.magnitude;
+            Vector2 dir = len > 0.0001f
+                ? delta / len
+                : (g.Position - _miniPlayerPos).normalized;
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f;
+
+            // Garis putus-putus yang "berjalan" dari pemain ke tujuan.
+            const float spacing = 0.2f, startGap = 0.3f;
+            float march = Mathf.Repeat(_time * 0.6f, spacing);
+            for (int i = 0; i < MiniGuideDots; i++)
+            {
+                float t = startGap + march + i * spacing;
+                bool show = t < len - 0.12f;
+                Show(_miniGuideDots[i], show);
+                if (!show) continue;
+                Vector2 p = pl + dir * t;
+                var dot = _miniGuideDots[i];
+                dot.color = tint;
+                dot.transform.localPosition = new Vector3(p.x, p.y, 0f);
+                dot.transform.localScale = Vector3.one * 0.07f;
+            }
+
+            // Panah kecil di samping pemain, berdenyut ke arah tujuan.
+            float bob = (Mathf.Sin(_time * 5f) * 0.5f + 0.5f) * 0.06f;
+            Vector2 a = pl + dir * (0.42f + bob);
+            _miniGuideArrow.color = tint;
+            _miniGuideArrow.transform.localPosition = new Vector3(a.x, a.y, 0f);
+            _miniGuideArrow.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+            _miniGuideArrow.transform.localScale = Vector3.one * 0.3f;
+            _miniGuideArrowOutline.transform.localPosition = new Vector3(a.x, a.y, 0f);
+            _miniGuideArrowOutline.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+            _miniGuideArrowOutline.transform.localScale = Vector3.one * 0.4f;
+
+            // Baris di bawah legenda: ikon arah + nama tujuan + jarak.
+            _miniGuideIcon.color = tint;
+            _miniGuideIcon.transform.localPosition = new Vector3(mapL + 0.12f, rowY, 0f);
+            _miniGuideIcon.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+            string meters = " " + Mathf.RoundToInt(dist) + "M";
+            int maxChars = Mathf.Max(4, Mathf.FloorToInt((mapW - 0.35f) / PixelFont.CharW));
+            string label = string.IsNullOrEmpty(g.Label) ? "TUJUAN" : g.Label;
+            int room = maxChars - meters.Length;
+            if (label.Length > room) label = label.Substring(0, Mathf.Max(1, room - 1)) + ".";
+            string text = label + meters;
+            string key = (g.IsJob ? "J" : "Q") + text;
+            if (key != _miniGuideCache)
+            {
+                _miniGuideCache = key;
+                SetText(_miniGuideText, text, tint, 1, new Vector2(0f, 0.5f));
+            }
+            _miniGuideText.transform.localPosition = new Vector3(mapL + 0.38f, rowY, 0f);
         }
 
         static Vector2 MapToMini(Vector2 world, float left, float bottom, float width, float height)

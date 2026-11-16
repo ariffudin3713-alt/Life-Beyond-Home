@@ -26,7 +26,7 @@ namespace PixelAdventure.LifeSim
     /// </summary>
     public partial class PulangGame : MonoBehaviour
     {
-        enum State { Title, NameEntry, Playing, Dialogue, Menu, Work, Pause, Journal, Tasks, Inventory, Tablet, Profile, Guide, Busy, Ending, Contacts }
+        enum State { Title, NameEntry, Playing, Dialogue, Menu, Work, Pause, Journal, Tasks, Inventory, Tablet, Profile, Guide, Busy, Ending, Contacts, WorldMap, Settings, Amount }
 
         public static PulangGame Instance { get; private set; }
         public bool CanAmbientMove => _state == State.Playing;
@@ -91,6 +91,7 @@ namespace PixelAdventure.LifeSim
             _story.StateChanged += OnStoryStateChanged;
             _story.ObjectiveCompleted += text => { _hud.ShowToast(text.ToUpperInvariant()); GameAudio.Play("quest_done", 0.55f); SyncQuestItems(); };
             _story.GameFinished += OnGameFinished;
+            _story.AnyEvent += OnSideEvent;
 
             PlacePlayerAt(Region.DesaSukaMakmur, _world.Spot(LocationId.RumahZidan));
             ShowTitle();
@@ -103,6 +104,7 @@ namespace PixelAdventure.LifeSim
             _today.Clear();
             _questItemsBaseline = false;
             _story.NewGame();                 // -> NameEntry (lewat StateChanged)
+            ApplyOutfit();
             _clock = D.minutes;
             PlacePlayerAt(Region.DesaSukaMakmur, _world.Spot(LocationId.RumahZidan));
             RefreshNpcVisibility();
@@ -117,6 +119,7 @@ namespace PixelAdventure.LifeSim
             PlacePlayerAt(data.region, pos);
             _hud.HideTitle();
             _story.Resume(data);
+            ApplyOutfit();
             if (data.state != StoryState.NameEntry) EnterPlaying();
             RefreshNpcVisibility();
         }
@@ -169,6 +172,7 @@ namespace PixelAdventure.LifeSim
             // Tombol X di pojok layar yang terbuka = ESC (menutup / kembali).
             bool closable = CanCloseScreen();
             _hud.SetCloseAllowed(closable);
+            _hud.SetPlayInput(_state == State.Playing);   // bilah tombol HUD hanya saat bermain bebas
             if (closable && _inputLock <= 0f && _hud.CloseButtonClicked())
             {
                 GameAudio.Play("click", 0.4f);
@@ -191,6 +195,9 @@ namespace PixelAdventure.LifeSim
                 case State.Profile: UpdateProfile(); break;
                 case State.Guide: UpdateGuide(); break;
                 case State.Contacts: UpdateContacts(); break;
+                case State.WorldMap: UpdateWorldMap(); break;
+                case State.Settings: UpdateSettings(); break;
+                case State.Amount: UpdateAmount(); break;
                 case State.Ending: UpdateEnding(); break;
             }
 
@@ -211,6 +218,10 @@ namespace PixelAdventure.LifeSim
                 case State.Profile:
                 case State.Guide:
                 case State.Contacts:
+                case State.WorldMap:
+                case State.Settings:
+                case State.Amount:
+                case State.Work:      // mini-game kerja: X / ESC = berhenti lebih awal
                     return true;
                 case State.Title: return _homePage == HomePage.Slots;   // slot simpanan -> kembali ke menu utama
                 default: return false;
@@ -262,6 +273,7 @@ namespace PixelAdventure.LifeSim
                 FaceNearbyNpcs();
                 _world.UpdateSigns(_player.Feet);
                 CheckArrival();
+                if (CheckEdgeTravel()) return;    // berjalan ke ujung peta -> wilayah sebelah
             }
             else if (CheckInteriorExit()) return;
 
@@ -280,6 +292,7 @@ namespace PixelAdventure.LifeSim
             if (LifeInput.InventoryPressed) { OpenInventory(false); return; }
             if (LifeInput.TabletPressed) { OpenTablet(); return; }
             if (LifeInput.GuidePressed) { OpenGuide(false); return; }
+            if (LifeInput.MapPressed) { OpenWorldMap(false); return; }
             if (LifeInput.PausePressed) { OpenPause(); return; }
             if (LifeInput.VehiclePressed && _inputLock <= 0f) { ToggleVehicle(); return; }
             if (LifeInput.InteractPressed && _inputLock <= 0f) Interact();
@@ -326,8 +339,8 @@ namespace PixelAdventure.LifeSim
 
         void UpdateEnding()
         {
-            if (_inputLock > 0f || !LifeInput.InteractPressed) return;
-            PulangSaveData.Delete();          // tidak ada ending lain; mulai lagi dari awal
+            if (_inputLock > 0f || !(LifeInput.InteractPressed || LifeInput.PointerTapped)) return;
+            PulangSaveData.Delete();         // tidak ada ending lain; mulai lagi dari awal
             ShowTitle();
         }
 
@@ -357,7 +370,38 @@ namespace PixelAdventure.LifeSim
             Line l = _lines[_lineIndex];
             string speaker = string.IsNullOrEmpty(l.Speaker) ? " " : PulangProfile.Format(l.Speaker).ToUpperInvariant();
             _hud.ShowDialogue(speaker, PulangProfile.Format(l.Text).ToUpperInvariant());
+            ShowLinePortraits(l.Speaker);
             MarkKnownBySpeaker(PulangProfile.Format(l.Speaker));
+        }
+
+        // Potret percakapan ala Citampi: lawan bicara di kiri, tokoh utama di kanan.
+        string _portraitNpc;
+
+        void ShowLinePortraits(string rawSpeaker)
+        {
+            if (_lineIndex == 0) _portraitNpc = null;
+
+            bool isPlayer = rawSpeaker != null && rawSpeaker.Contains("{nama}");
+            bool narration = string.IsNullOrWhiteSpace(rawSpeaker);
+            string npcKey = isPlayer || narration ? null : NpcPortraitKey(PulangProfile.Format(rawSpeaker));
+
+            // Pembicara bernama tanpa potret (mis. "HRD"): lawan bicara sebelumnya disembunyikan.
+            if (npcKey != null) _portraitNpc = npcKey;
+            else if (!isPlayer && !narration) _portraitNpc = null;
+
+            string playerKey = isPlayer || _portraitNpc != null ? "lc_player_down_0" : null;
+            int speaking = isPlayer ? 1 : npcKey != null ? 0 : -1;
+            _hud.SetDialoguePortraits(_portraitNpc, playerKey, speaking);
+        }
+
+        static string NpcPortraitKey(string speaker)
+        {
+            if (string.IsNullOrEmpty(speaker)) return null;
+            foreach (var def in PulangCast.All)
+                if (string.Equals(def.Name, speaker, StringComparison.OrdinalIgnoreCase)
+                    && PulangNpcLines.Sprite.TryGetValue(def.Id, out string s))
+                    return "lc_" + s + "_down_0";
+            return null;
         }
 
         void UpdateDialogue()
@@ -500,6 +544,16 @@ namespace PixelAdventure.LifeSim
             if (LifeInput.UpPressed) { _menuSelected = (_menuSelected + _menuCount - 1) % _menuCount; _hud.SetMenuSelection(_menuSelected); GameAudio.Play("click", 0.4f); }
             if (LifeInput.DownPressed) { _menuSelected = (_menuSelected + 1) % _menuCount; _hud.SetMenuSelection(_menuSelected); GameAudio.Play("click", 0.4f); }
 
+            // Kursor: arahkan = pilih, klik = jalankan.
+            if (_hud.PointerHover(UiHit.Menu, out int hover) && hover != _menuSelected && hover < _menuCount)
+            {
+                _menuSelected = hover;
+                _hud.SetMenuSelection(hover);
+                GameAudio.Play("click", 0.25f);
+            }
+            bool clicked = _hud.PointerClick(UiHit.Menu, out int pick) && pick < _menuCount;
+            if (clicked) { _menuSelected = pick; _hud.SetMenuSelection(pick); }
+
             if (_menuCancellable && LifeInput.CancelPressed)
             {
                 _hud.HideMenu();
@@ -508,9 +562,10 @@ namespace PixelAdventure.LifeSim
                 var back = _menuOnCancel;
                 _menuOnCancel = null;
                 back?.Invoke();
+                if (_state == State.Playing) AfterReturnToPlaying();   // kirim kejadian tertunda (mis. beli)
                 return;
             }
-            if (!LifeInput.InteractPressed) return;
+            if (!LifeInput.InteractPressed && !clicked) return;
 
             Action action = _menuActions[_menuSelected];
             _hud.HideMenu();
@@ -536,13 +591,20 @@ namespace PixelAdventure.LifeSim
         void UpdatePause()
         {
             if (_inputLock > 0f) return;
-            if (LifeInput.HomePressed)
+            bool clicked = _hud.PointerClick(UiHit.Pause, out int pick);
+            if (clicked && pick == 2)
+            {
+                GameAudio.ToggleMute();
+                _hud.ShowPause(GameAudio.Muted);
+                return;
+            }
+            if (LifeInput.HomePressed || (clicked && pick == 1))
             {
                 _hud.HidePause();
                 ReturnToHome();
                 return;
             }
-            if (LifeInput.PausePressed || LifeInput.CancelPressed || LifeInput.InteractPressed)
+            if (LifeInput.PausePressed || LifeInput.CancelPressed || LifeInput.InteractPressed || (clicked && pick == 0))
             {
                 _hud.HidePause();
                 _state = State.Playing;

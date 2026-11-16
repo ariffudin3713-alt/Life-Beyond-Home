@@ -119,7 +119,7 @@ namespace PixelAdventure.LifeSim
                 body.sharedMaterial = PixelArt.SpriteMaterial;
                 var k = new Kid
                 {
-                    T = go.transform, Body = body, Id = "warga" + (1 + (i * 2 + 1) % 6), Area = areas[i],
+                    T = go.transform, Body = body, Id = PixelArt.Sprites.ContainsKey("lc_anak1_down_0") ? "anak" + (1 + i % 3) : "warga" + (1 + (i * 2 + 1) % 6), Area = areas[i],
                     Speed = Random.Range(1.4f, 2.1f), Wait = Random.Range(0f, 1.5f),
                 };
                 k.Pos = k.Target = c.Pick(k.Area, k.Area.center);

@@ -17,7 +17,7 @@ namespace PixelAdventure.LifeSim
             _cam = cam;
             _target = target;
             cam.orthographic = true;
-            cam.orthographicSize = 8f;
+            cam.orthographicSize = LifeGraphics.CameraSize;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.10f, 0.12f, 0.20f);
             Snap();
@@ -54,6 +54,8 @@ namespace PixelAdventure.LifeSim
         void LateUpdate()
         {
             if (_target == null || _cam == null) return;
+            if (!Mathf.Approximately(_cam.orthographicSize, LifeGraphics.CameraSize))
+                _cam.orthographicSize = LifeGraphics.CameraSize;   // zoom diubah di pengaturan
             Vector3 desired = Desired();
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             float k = 1f - Mathf.Exp(-8f * dt);

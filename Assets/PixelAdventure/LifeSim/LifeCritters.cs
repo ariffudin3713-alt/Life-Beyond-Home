@@ -41,6 +41,8 @@ namespace PixelAdventure.LifeSim
         readonly List<Butterfly> _butterflies = new List<Butterfly>();
         readonly List<Bird> _birds = new List<Bird>();
 
+        bool _hiddenForLow;
+
         public static LifeCritters Attach(Transform regionRoot) => regionRoot.gameObject.AddComponent<LifeCritters>();
 
         /// <summary>Tambah kupu-kupu dan burung di sebuah area taman (koordinat dunia).</summary>
@@ -80,6 +82,16 @@ namespace PixelAdventure.LifeSim
 
         void Update()
         {
+            // Mode hemat efek: kupu-kupu & burung disembunyikan dan tidak diperbarui.
+            bool low = LifeGraphics.LowEffects;
+            if (low != _hiddenForLow)
+            {
+                _hiddenForLow = low;
+                foreach (var b in _butterflies) b.Sr.gameObject.SetActive(!low);
+                foreach (var b in _birds) b.Sr.gameObject.SetActive(!low);
+            }
+            if (low) return;
+
             var game = PulangGame.Instance;
             bool day = LifeWorld.NightLevel < 0.5f;
             bool moving = game != null && game.CanAmbientMove;

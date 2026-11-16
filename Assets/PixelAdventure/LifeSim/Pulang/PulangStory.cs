@@ -71,6 +71,7 @@ namespace PixelAdventure.LifeSim.Pulang
         Save,        // key = "*" (menabung di kost)
         GirlTalk,    // key = NpcId teman perempuan (mengobrol, sekali sehari per orang)
         Gift,        // key = NpcId penerima hadiah
+        Litter,      // key = "*" (membuang sampah yang dipungut ke tong sampah), sekali per sampah
     }
 
     /// <summary>Angka yang tidak disebut dokumen. Satu tempat untuk disetel desainer.</summary>
@@ -169,6 +170,10 @@ namespace PixelAdventure.LifeSim.Pulang
         public float posX = -1f, posY = -1f;
 
         public GirlProgress[] girls = NewGirls();
+
+        // Misi sampingan (lihat PulangSideQuests)         public GirlProgress[] girls = NewGirls(); pakaian yang sedang dipakai ("" = baju harian).
+        public List<SideQuestProgress> side = new List<SideQuestProgress>();
+        public string outfit = "";
         public List<string> flags = new List<string>();
 
         static GirlProgress[] NewGirls()
@@ -302,6 +307,8 @@ namespace PixelAdventure.LifeSim.Pulang
         public event Action<StoryState> StateChanged;
         public event Action<string> ObjectiveCompleted;
         public event Action GameFinished;
+        /// <summary>Setiap kejadian (beli, tiba, kerja, hadiah, ...) sebelum diproses misi utama.</summary>
+        public event Action<StoryEvent, string> AnyEvent;
 
         public QuestDef Current => Quests[Data.state];
         public Chapter Chapter => Current.Chapter;
@@ -567,6 +574,9 @@ namespace PixelAdventure.LifeSim.Pulang
         /// <summary>Semua sistem (dialog, peta, toko, kerja) melapor ke sini.</summary>
         public void Notify(StoryEvent ev, string key)
         {
+            // Misi sampingan ikut mendengar semua kejadian, apa pun misi utamanya.
+            AnyEvent?.Invoke(ev, key);
+
             var q = Current;
             if (q.Objectives.Length == 0) return;
 

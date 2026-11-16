@@ -78,6 +78,7 @@ namespace PixelAdventure.LifeSim
 
             // ---------------- Pantai Cemara
             new Placement(LocationId.PantaiCemara, Kind.Spot, 48f, 44f),
+            new Placement(LocationId.TerminalPantai, Kind.Halte, 6f, 14.3f),   // di pasir, tepi utara jalan pantai (jauh dari laut)
 
             // ---------------- Penginapan (satu per wilayah, di lahan kosong tepi jalan)
             new Placement(LocationId.PenginapanDesa,    Kind.Inn, 75f, 36f),   // utara jalan desa, sebelum terminal
@@ -163,6 +164,7 @@ namespace PixelAdventure.LifeSim
                 _build = root;
                 _buildRegion = r;
                 _buildObstacles = new List<Rect>();
+                _buildHaltes.Clear();
                 _regionObstacles[r] = _buildObstacles;
                 _locations[r] = new List<LocationId>();
 
@@ -170,6 +172,7 @@ namespace PixelAdventure.LifeSim
                 foreach (var p in Layout)
                     if (PulangWorld.Get(p.Id).Region == r) Place(p, r);
                 BuildScenery(r);
+                BuildEdgeSigns(r);
                 BuildDecor(r);
                 BuildCritters(r, root);
                 BuildStreet(r, root);
@@ -256,6 +259,7 @@ namespace PixelAdventure.LifeSim
                     break;
                 case Kind.Halte:
                     Make("lc_bus_stop", x, y, "Halte", Order(y));
+                    _buildHaltes.Add(HalteRect(x, y));
                     AddObstacle(x - 0.9f, y, 1.8f, 0.6f);
                     WallPlate(name, x, y, 3.25f, 4.8f, PlateStyle.Halte);
                     spot = new Vector2(x + 1.4f, y - 0.3f);
@@ -380,8 +384,7 @@ namespace PixelAdventure.LifeSim
                     }
                     Make("lc_beach_umbrella", 36f, 24f, "Payung", Order(24f));
                     Make("lc_beach_umbrella", 72f, 22f, "Payung2", Order(22f));
-                    Make("lc_bus_stop", 6f, 14.3f, "Halte", Order(14.3f));   // di pasir, tepi utara jalan
-                    WallPlate("Halte Pantai", 6f, 14.3f, 3.25f, 4.8f, PlateStyle.Halte);
+                    // Halte Pantai kini lokasi TerminalPantai (lihat Layout): bisa naik bus, tidak lagi hiasan.
                     break;
             }
         }
@@ -482,8 +485,8 @@ namespace PixelAdventure.LifeSim
 
         readonly List<SignLabel> _signs = new List<SignLabel>();
         Region _buildRegion;
-        const int CharPx = 6;     // lebar satu huruf PixelFont skala 1
-        const int LinePx = 9;     // tinggi satu baris termasuk garis tepi
+        const int CharPx = PixelFont.CellPx;   // lebar satu huruf PixelFont skala 1 (termasuk jarak)
+        const int LinePx = 10;    // tinggi satu baris: huruf + garis tepi (9) + celah 1 piksel
 
         /// <summary>Papan nama yang menempel di dinding, setinggi <paramref name="height"/> dari dasar bangunan.</summary>
         void WallPlate(string title, float x, float baseY, float height, float maxWidth, PlateStyle style)
@@ -493,6 +496,67 @@ namespace PixelAdventure.LifeSim
         }
 
         /// <summary>Papan bertiang untuk tempat terbuka dan nama jalan.</summary>
+        /// <summary>Papan jalan di ujung kiri/kanan jalan utama: menunjuk wilayah sebelah (bisa dicapai jalan kaki).</summary>
+        void BuildEdgeSigns(Region r)
+        {
+            if (!PulangWorld.EdgeRoadTop.TryGetValue(r, out float top)) return;
+            float y = top + 0.9f;
+            if (PulangWorld.EdgeLeft.TryGetValue(r, out Region l))
+            {
+                string title = "< " + PulangWorld.RegionNames[l];
+                PostSign(title, FreeEdgeSignX(title, 3.2f, y, 1f), y, PlateStyle.Jalan);
+            }
+            if (PulangWorld.EdgeRight.TryGetValue(r, out Region rr))
+            {
+                string title = PulangWorld.RegionNames[rr] + " >";
+                PostSign(title, FreeEdgeSignX(title, Width - 3.2f, y, -1f), y, PlateStyle.Jalan);
+            }
+        }
+
+        // ------------------------------------------------------------------ halte & papan ujung jalan
+
+        /// <summary>Kotak tampilan halte di wilayah yang sedang dibangun (atap + papan nama di atasnya).</summary>
+        readonly List<Rect> _buildHaltes = new List<Rect>();
+
+        /// <summary>Gambar halte 80x64 px (5 x 4 unit) berpivot di tengah bawah, ditambah papan nama di atap.</summary>
+        static Rect HalteRect(float x, float y) => new Rect(x - 2.6f, y, 5.2f, 5.6f);
+
+        /// <summary>Lebar papan bertiang (unit) untuk judul ini, sama dengan perhitungan CreateSign.</summary>
+        float SignWidth(string title, float maxWidth = 5.2f)
+        {
+            int maxChars = Mathf.Max(6, Mathf.FloorToInt((maxWidth * PixelArt.PPU - 8f) / CharPx));
+            int textW = 0;
+            foreach (string line in WrapSign(title.ToUpperInvariant(), maxChars)) textW = Mathf.Max(textW, line.Length * CharPx + 2);
+            return (textW + 8) / PixelArt.PPU;
+        }
+
+        /// <summary>
+        /// Posisi x papan ujung jalan yang tidak tertutup halte atau benda lain yang berdiri di depannya.
+        /// Mulai dari posisi biasa di dekat ujung peta, lalu bergeser ke dalam (arah <paramref name="inward"/>)
+        /// sampai bebas. Benda "di depan" = alasnya sedikit lebih rendah dari kaki papan sehingga digambar
+        /// di atas papan; benda di belakang (alas lebih tinggi) tidak menutupi papan.
+        /// </summary>
+        float FreeEdgeSignX(string title, float startX, float y, float inward)
+        {
+            float half = SignWidth(title) * 0.5f + 0.25f;
+            for (float x = startX; Mathf.Abs(x - startX) <= 18f; x += inward * 0.5f)
+            {
+                if (x - half < 0.3f || x + half > Width - 0.3f) continue;   // papan tidak boleh keluar peta
+                if (!SignBlocked(x, half, y)) return x;
+            }
+            return startX;
+        }
+
+        bool SignBlocked(float x, float half, float y)
+        {
+            float l = x - half, r = x + half;
+            foreach (var h in _buildHaltes)
+                if (h.xMax > l && h.xMin < r && h.yMin < y + 0.6f && h.yMax > y) return true;
+            foreach (var o in _buildObstacles)
+                if (o.xMax > l && o.xMin < r && o.yMin < y + 0.3f && o.yMin > y - 6f) return true;
+            return false;
+        }
+
         void PostSign(string title, float x, float y, PlateStyle style)
         {
             AddObstacle(x - 0.12f, y, 0.24f, 0.2f);

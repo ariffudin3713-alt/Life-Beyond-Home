@@ -28,6 +28,7 @@ namespace PixelAdventure.LifeSim
         static readonly Color InvGear = new Color(0.62f, 0.78f, 1f);
         static readonly Color InvQuest = new Color(1f, 0.84f, 0.40f);
         static readonly Color InvRide = new Color(1f, 0.66f, 0.38f);
+        static readonly Color InvCloth = new Color(0.78f, 0.62f, 1f);
 
         static readonly Color InvTabOn = new Color(0.52f, 0.38f, 0.14f, 1f);
         static readonly Color InvTabOff = new Color(0.16f, 0.12f, 0.20f, 1f);
@@ -56,7 +57,7 @@ namespace PixelAdventure.LifeSim
 
         static Color KindColor(ItemKind k) =>
             k == ItemKind.Makanan ? InvFood : k == ItemKind.Hadiah ? InvGift : k == ItemKind.Perlengkapan ? InvGear
-            : k == ItemKind.Kendaraan ? InvRide : InvQuest;
+            : k == ItemKind.Kendaraan ? InvRide : k == ItemKind.Pakaian ? InvCloth : InvQuest;
 
         static string KindIcon(ItemKind k) =>
             k == ItemKind.Makanan ? "lc_item_food" : k == ItemKind.Hadiah ? "lc_item_gift"
@@ -113,6 +114,7 @@ namespace PixelAdventure.LifeSim
                 ui.Solid(tx, tabY, tabW - 0.16f, 0.62f, sel ? InvTabOn : InvTabOff, 2);
                 if (sel) ui.Solid(tx, tabY - 0.31f, tabW - 0.16f, 0.07f, Gold, 3);
                 ui.Text(Fit(_invTabNames[i], CharsFor(tabW - 0.4f)), tx, tabY, sel ? Gold : Soft, 1, 0.5f);
+                Hit(UiHit.InvTab, i, RectAt(tx, tabY, tabW - 0.16f, 0.62f));
             }
 
             // ---- badan
@@ -131,7 +133,7 @@ namespace PixelAdventure.LifeSim
             // ---- pesan & petunjuk
             if (!string.IsNullOrEmpty(_invMessageText))
                 ui.Text(Fit(_invMessageText, CharsFor(w - 1.4f)), 0f, -top + 0.95f, Pink, 1, 0.5f);
-            ui.Text(Fit("A/D - KATEGORI   W/S - PILIH   E - PAKAI   ESC / I - KEMBALI", CharsFor(w - 1.4f)),
+            ui.Text(CompactHint("A/D - KATEGORI   W/S - PILIH   E / KLIK - PAKAI   ESC / I - KEMBALI", CharsFor(w - 1.4f)),
                 0f, -top + 0.45f, Gold, 1, 0.5f);
             ui.End();
         }
@@ -167,6 +169,7 @@ namespace PixelAdventure.LifeSim
                 string name = (e.Kind == ItemKind.Misi ? "! " : "") + e.Name;
                 ui.Text(Fit(name, nameChars), l + 1.25f, y, sel ? Gold : Ink);
                 ui.Text("X" + e.Count, r, y, Soft, 1, 1f);
+                Hit(UiHit.InvRow, idx, RectAt(cx, y, lw - 0.3f, InvRowH - 0.04f));
             }
             if (_invFirst > 0) ui.Text("▲", cx, bodyTop - 0.18f, Soft, 1, 0.5f);
             if (_invFirst + visible < _invEntries.Count) ui.Text("▼", cx, bodyBottom + 0.2f, Soft, 1, 0.5f);

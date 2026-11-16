@@ -156,7 +156,7 @@ namespace PixelAdventure.LifeSim
             }
             string desc = _homeOptionCount > 0 ? _homeOpts[_homeSelected].Sub : " ";
             SetText(_homeDesc, string.IsNullOrEmpty(desc) ? " " : desc, Ink, 1, new Vector2(0.5f, 0.5f));
-            SetText(_homeHint, "W/S - PILIH    E / ENTER - OK    ATAU KETUK TOMBOL", Ink, 1, new Vector2(0.5f, 0.5f));
+            SetHint(_homeHint, "W/S / KURSOR - PILIH    E / ENTER / KLIK - OK", Ink);
             _homeMenuGroup.gameObject.SetActive(true);
             _homeSlotGroup.gameObject.SetActive(false);
             _homePanel.gameObject.SetActive(false);
@@ -186,11 +186,7 @@ namespace PixelAdventure.LifeSim
             return -1;
         }
 
-        Vector2 PointerLocal()
-        {
-            Vector3 world = _cam.ScreenToWorldPoint(LifeInput.PointerPosition);
-            return world - _root.position;
-        }
+        Vector2 PointerLocal() => PointerToHud();
 
         // ------------------------------------------------------------ layar slot
 
@@ -208,7 +204,7 @@ namespace PixelAdventure.LifeSim
                 SetText(_slotLabels[i], "SLOT " + (i + 1), sel ? Gold : Soft, 2, new Vector2(0f, 0.5f));
             }
             _slotFitChars = -1;   // isi kartu ditulis ulang saat layout (menyesuaikan lebar kartu)
-            SetText(_homeHint, hint, Ink, 1, new Vector2(0.5f, 0.5f));
+            SetHint(_homeHint, hint, Ink);
             _homeMenuGroup.gameObject.SetActive(false);
             _homeSlotGroup.gameObject.SetActive(true);
             _homePanel.gameObject.SetActive(true);
@@ -281,6 +277,7 @@ namespace PixelAdventure.LifeSim
             float bob = Mathf.Sin(_time * 1.6f) * 0.08f;
             _homeVersion.transform.localPosition = new Vector3(halfW - 0.4f, -halfH + 0.35f, 0f);
             _homeHint.transform.localPosition = new Vector3(0f, -halfH + 0.35f, 0f);
+            FitHint(_homeHint, (halfW - 2.6f) * 2f);   // jangan menabrak label versi di kanan bawah
 
             if (_homeMenuGroup.gameObject.activeSelf)
             {
@@ -289,7 +286,7 @@ namespace PixelAdventure.LifeSim
                 _homeSub.transform.localPosition = new Vector3(0f, top - 3.25f, 0f);
 
                 // Tombol bertumpuk di tengah.
-                float bw = Mathf.Min(11.5f, halfW * 2f - 2f), bh = 1.1f, step = 1.3f;
+                float bw = Mathf.Min(13f, halfW * 2f - 2f), bh = 1.1f, step = 1.3f;   // "SLOT SIMPANAN" (huruf besar) muat dengan tepi lega
                 float startY = top - 4.55f;
                 for (int i = 0; i < _homeOptionCount; i++)
                 {
@@ -299,6 +296,7 @@ namespace PixelAdventure.LifeSim
                     SetRect(_homeButtons[i], 0f, y, bw + grow, bh + grow * 0.3f);
                     _homeOptions[i].transform.localPosition = new Vector3(0f, y, 0f);
                     _homeButtonRects[i] = new Rect(-bw * 0.5f, y - bh * 0.5f, bw, bh);
+                    Hit(UiHit.HomeOption, i, _homeButtonRects[i], 2);
                 }
                 _homeDesc.transform.localPosition = new Vector3(0f, startY - _homeOptionCount * step - 0.15f, 0f);
             }
@@ -319,7 +317,7 @@ namespace PixelAdventure.LifeSim
                 float lx = -cw * 0.5f + 0.6f;
                 float ix = lx + 5.2f;
                 float rx = cw * 0.5f - 0.6f;
-                int chars = Mathf.Max(8, Mathf.FloorToInt((rx - ix) / (6f / 16f)));
+                int chars = Mathf.Max(8, Mathf.FloorToInt((rx - ix) / PixelFont.CharW));
                 if (chars != _slotFitChars) { _slotFitChars = chars; ApplySlotTexts(chars); }
                 float row = Mathf.Min(0.72f, ch * 0.28f);
                 for (int i = 0; i < SlotCards; i++)
@@ -332,6 +330,7 @@ namespace PixelAdventure.LifeSim
                     _slotLine2[i].transform.localPosition = new Vector3(ix, cy, 0f);
                     _slotLine3[i].transform.localPosition = new Vector3(ix, cy - row, 0f);
                     _slotRects[i] = new Rect(-cw * 0.5f, cy - ch * 0.5f, cw, ch);
+                    Hit(UiHit.SlotCard, i, _slotRects[i], 2);
                 }
                 float lastBottom = firstCy - (SlotCards - 1) * (ch + gap) - ch * 0.5f;
                 _slotMessage.transform.localPosition = new Vector3(0f, (lastBottom + (-h * 0.5f + 0.2f)) * 0.5f, 0f);

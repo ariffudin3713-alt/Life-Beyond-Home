@@ -174,7 +174,17 @@ namespace PixelAdventure.LifeSim
                 RefreshContacts();
                 return true;
             }
-            if (!LifeInput.InteractPressed) return true;
+            // Kursor: arahkan = pilih, klik = jalankan.
+            if (_hud.PointerHover(UiHit.Picker, out int hover) && hover != _pickSel && hover < n)
+            {
+                _pickSel = hover;
+                GameAudio.Play("click", 0.25f);
+                RefreshContacts();
+                return true;
+            }
+            bool clicked = _hud.PointerClick(UiHit.Picker, out int pick) && pick < n;
+            if (clicked) _pickSel = pick;
+            if (!LifeInput.InteractPressed && !clicked) return true;
 
             var o = p.Options[_pickSel];
             if (!o.Enabled) { GameAudio.Play("error", 0.4f); return true; }
@@ -204,6 +214,34 @@ namespace PixelAdventure.LifeSim
                 return;
             }
             var ids = KnownContacts();
+
+            // Kursor: klik tab; arahkan ke kontak = pilih; klik kontak terpilih / tombol aksi = jalankan.
+            if (_hud.PointerClick(UiHit.ContactTab, out int tab) && tab != (int)_contactTab && tab < 3)
+            {
+                _contactTab = (ContactTab)tab;
+                _contactMsg = null;
+                GameAudio.Play("click", 0.35f);
+                RefreshContacts();
+                return;
+            }
+            bool act = _hud.PointerClick(UiHit.ContactAction, out _);
+            if (ids.Count > 0)
+            {
+                int pick = -1;
+                if (_hud.PointerClick(UiHit.ContactRow, out int clickRow)) { act |= clickRow == _contactIndex; pick = clickRow; }
+                else if (_hud.PointerHover(UiHit.ContactRow, out int hoverRow)) pick = hoverRow;
+                float wheel = LifeInput.ScrollWheel;
+                if (pick < 0 && wheel != 0f) pick = Mathf.Clamp(_contactIndex + (wheel > 0f ? -1 : 1), 0, ids.Count - 1);
+                if (pick >= 0 && pick < ids.Count && pick != _contactIndex)
+                {
+                    _contactIndex = pick;
+                    _contactMsg = null;
+                    GameAudio.Play("click", 0.25f);
+                    RefreshContacts();
+                    return;
+                }
+            }
+
             if (LifeInput.LeftPressed || LifeInput.RightPressed)
             {
                 int dir = LifeInput.LeftPressed ? -1 : 1;
@@ -222,7 +260,7 @@ namespace PixelAdventure.LifeSim
                 RefreshContacts();
                 return;
             }
-            if (!LifeInput.InteractPressed || ids.Count == 0) return;
+            if (!(LifeInput.InteractPressed || act) || ids.Count == 0) return;
 
             NpcId who = ids[_contactIndex];
             switch (_contactTab)

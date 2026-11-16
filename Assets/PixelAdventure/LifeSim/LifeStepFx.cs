@@ -51,7 +51,7 @@ namespace PixelAdventure.LifeSim
             GameAudio.Play(sfx, running ? 0.42f : 0.3f, Random.Range(0.9f, 1.1f) * (running ? 1.08f : 1f));
 
             bool dusty = s == Surface.Dirt || s == Surface.Sand;
-            if (s != Surface.Floor && (running || dusty))
+            if (s != Surface.Floor && (running || dusty) && !LifeGraphics.LowEffects)   // mode hemat: tanpa debu
             {
                 // Debu sedikit di belakang kaki, melayang ke arah berlawanan langkah.
                 Vector2 back = dir == 2 ? Vector2.right : dir == 3 ? Vector2.left : dir == 1 ? Vector2.down : Vector2.up;

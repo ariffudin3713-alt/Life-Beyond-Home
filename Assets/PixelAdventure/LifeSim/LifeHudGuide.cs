@@ -24,7 +24,7 @@ namespace PixelAdventure.LifeSim
     {
         const int GuideTextMax = 48;
         const float GuideTextScale = 1.25f;                      // pembesaran huruf di halaman
-        const float GuideCharW = 6f / 16f * GuideTextScale;      // lebar satu huruf
+        const float GuideCharW = PixelFont.CharW * GuideTextScale;      // lebar satu huruf
         const float GuideLine = 0.76f;                           // jarak antar baris
         const float GuideEntryGap = 0.36f;                       // jarak antar poin
         const float GuidePad = 0.7f;                             // margin dalam halaman
@@ -98,7 +98,7 @@ namespace PixelAdventure.LifeSim
             }
             _guideSpine = Solid(_guideGroup, "Spine", new Color(0.45f, 0.24f, 0.14f, 1f), 4012);
             _guidePageNo = Text(_guideGroup, "PageNo", " ", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
-            _guideHint = Text(_guideGroup, "Hint", "A/D - BALIK HALAMAN    ESC / G - TUTUP", 1, Gold,
+            _guideHint = Text(_guideGroup, "Hint", "A/D / KLIK HALAMAN - BALIK    ESC / G - TUTUP", 1, Gold,
                 new Vector2(0.5f, 0.5f), 4013);
             _guideGroup.gameObject.SetActive(false);
         }
@@ -108,9 +108,7 @@ namespace PixelAdventure.LifeSim
         public bool GuideButtonClicked()
         {
             if (_cam == null || _hudGroup == null || !_hudGroup.gameObject.activeSelf || !LifeInput.PointerTapped) return false;
-            Vector3 world = _cam.ScreenToWorldPoint(LifeInput.PointerPosition);
-            Vector2 local = world - _root.position;
-            return _guideBtnRect.Contains(local);
+            return _guideBtnRect.Contains(PointerToHud());
         }
 
         /// <summary>Buka buku dengan semua topik; halaman disusun otomatis sesuai ukuran layar.</summary>
@@ -157,6 +155,7 @@ namespace PixelAdventure.LifeSim
             _guideBtnIcon.transform.localScale = Vector3.one * (1.15f + 0.06f * Mathf.Sin(_time * 3f));
             _guideBtnText.transform.localPosition = new Vector3(right - w + 1.3f, cy, 0f);
             _guideBtnRect = new Rect(right - w, bottom, w, h);
+            if (PlayHitsOn) Hit(UiHit.GuideButton, 0, _guideBtnRect, 0);
         }
 
         void LayoutGuide(float halfW, float halfH)
@@ -173,6 +172,8 @@ namespace PixelAdventure.LifeSim
             float pageW = (w - margin * 2f - spineW) * 0.5f;
             SetSolid(_guideSpine, 0f, (pageTop + pageBottom) * 0.5f, spineW, pageH + 0.2f);
             _guideHint.transform.localPosition = new Vector3(0f, -h * 0.5f + 0.38f, 0f);
+            SetHint(_guideHint, "A/D / KLIK HALAMAN - BALIK    ESC / G - TUTUP", Gold);
+            FitHint(_guideHint, w - 1f);
 
             // Susun alur halaman bila ukuran berubah (atau buku baru dibuka).
             if (!Mathf.Approximately(pageW, _guideFlowW) || !Mathf.Approximately(pageH, _guideFlowH))
@@ -189,6 +190,7 @@ namespace PixelAdventure.LifeSim
             {
                 float pcx = p == 0 ? -spineW * 0.5f - pageW * 0.5f : spineW * 0.5f + pageW * 0.5f;
                 SetSolid(_guidePage[p], pcx, (pageTop + pageBottom) * 0.5f, pageW, pageH);
+                Hit(UiHit.GuidePage, p, RectAt(pcx, (pageTop + pageBottom) * 0.5f, pageW, pageH), 1, false);
             }
             if (_guideShownSpread == _guideSpreadIndex) return;
             _guideShownSpread = _guideSpreadIndex;
@@ -307,7 +309,7 @@ namespace PixelAdventure.LifeSim
                 _guideIcon[p].transform.localScale = Vector3.one * 1.3f;
                 _guideIcon[p].transform.localPosition = new Vector3(contentL + 0.5f, ty, 0f);
                 float titleRoom = contentW - 1.35f;
-                bool big = page.Title.Length * (6f / 16f) * 2f <= titleRoom;
+                bool big = page.Title.Length * PixelFont.CharW * 2f <= titleRoom;
                 _guideTitle[p].sprite = PageSprite(page.Title, PageTitle, big ? 2 : 1);
                 _guideTitle[p].transform.localScale = Vector3.one * (big ? 1f : GuideTextScale);
                 _guideTitle[p].transform.localPosition = new Vector3(contentL + 1.35f, ty, 0f);

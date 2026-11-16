@@ -39,7 +39,7 @@ namespace PixelAdventure.LifeSim
         SpriteRenderer _promptPanel, _promptText;
 
         SpriteRenderer _talkPanel, _talkSpeaker, _talkHint;
-        readonly SpriteRenderer[] _talkLines = new SpriteRenderer[3];
+        readonly SpriteRenderer[] _talkLines = new SpriteRenderer[4];
 
         string _lastDay = "", _lastTime = "", _lastMoney = "", _lastQuest = "", _lastPhase = "";
         string _lastAffName = "";
@@ -49,6 +49,13 @@ namespace PixelAdventure.LifeSim
 
         float _toastTimer;
         float _time;
+        float _hudScale = 1f;   // skala akar HUD (zoom kamera x ukuran UI)
+
+        /// <summary>Titik dunia -> koordinat lokal HUD.</summary>
+        Vector2 WorldToHud(Vector2 world) => ((Vector2)world - (Vector2)_root.position) / _hudScale;
+
+        /// <summary>Posisi pointer (layar) -> koordinat lokal HUD.</summary>
+        Vector2 PointerToHud() => WorldToHud(_cam.ScreenToWorldPoint(LifeInput.PointerPosition));
 
         public void Init(Camera cam)
         {
@@ -66,6 +73,7 @@ namespace PixelAdventure.LifeSim
             BuildPlayHud();
             BuildPrompt();
             BuildDialogue();
+            BuildPortraits();
             BuildMenu();
             BuildTitle();
             BuildHome();
@@ -82,7 +90,12 @@ namespace PixelAdventure.LifeSim
             BuildProfile();
             BuildGuide();
             BuildContacts();
+            BuildWorldMap();
+            BuildSettings();
+            BuildAmount();
             BuildCloseButton();
+            BuildToolbar();
+            BuildPointer();
 
             HidePrompt();
             HideDialogue();
@@ -193,7 +206,7 @@ namespace PixelAdventure.LifeSim
             _talkSpeaker = Text(_talkGroup, "Speaker", " ", 1, Gold, new Vector2(0f, 0.5f), 4012);
             for (int i = 0; i < _talkLines.Length; i++)
                 _talkLines[i] = Text(_talkGroup, "Line" + i, " ", 1, Ink, new Vector2(0f, 0.5f), 4012);
-            _talkHint = Text(_talkGroup, "Hint", "E - LANJUT", 1, Soft, new Vector2(1f, 0.5f), 4012);
+            _talkHint = Text(_talkGroup, "Hint", "E / KLIK - LANJUT", 1, Soft, new Vector2(1f, 0.5f), 4012);
             _talkGroup.gameObject.SetActive(false);
         }
 
@@ -268,7 +281,7 @@ namespace PixelAdventure.LifeSim
         /// <summary>Bungkus teks misi per kata menjadi maks. 2 baris selebar panel; sisanya diberi "...".</summary>
         void SetQuestLines(string quest)
         {
-            int maxChars = Mathf.FloorToInt((_statsW - 0.5f - 0.5f) / (6f / 16f));   // ±33 huruf
+            int maxChars = Mathf.FloorToInt((_statsW - 0.5f - 0.5f) / PixelFont.CharW);   // ±33 huruf
             var lines = new List<string>();
             string cur = "";
             foreach (string raw in (quest ?? " ").Split(' '))
@@ -312,7 +325,7 @@ namespace PixelAdventure.LifeSim
         {
             string text = string.IsNullOrEmpty(_lastSubline) ? " " : _lastSubline;
             if (_sublineShort) text = text.Replace("TABUNGAN ", "TAB. ");
-            SetText(_hungerText, text, Soft, 1, new Vector2(1f, 0.5f));
+            SetText(_hungerText, text, Soft, 1, new Vector2(0f, 0.5f));   // rata kiri, di bawah uang
         }
 
         public void SetPrompt(string text)
@@ -340,7 +353,11 @@ namespace PixelAdventure.LifeSim
 
         public void ShowToast(string text)
         {
-            SetText(_toast, text, Gold, 2, new Vector2(0.5f, 0.5f));
+            // Huruf besar bila muat di layar; pesan panjang memakai huruf biasa (dipotong rapi bila perlu).
+            string t = string.IsNullOrEmpty(text) ? " " : text;
+            float room = Mathf.Max(6f, _halfW * 2f - 1.5f);
+            int scale = t.Length * UiCharW * 2f <= room ? 2 : 1;
+            SetText(_toast, scale == 2 ? t : CompactHint(t, CharsFor(room)), Gold, scale, new Vector2(0.5f, 0.5f));
             _toast.gameObject.SetActive(true);
             _toastTimer = 2.4f;
         }
@@ -349,20 +366,49 @@ namespace PixelAdventure.LifeSim
         {
             SetText(_talkSpeaker, string.IsNullOrEmpty(speaker) ? " " : speaker, Gold, 1,
                 new Vector2(0f, 0.5f));
-            string[] lines = Wrap(body, 62);
-            for (int i = 0; i < _talkLines.Length; i++)
-            {
-                string line = i < lines.Length ? lines[i] : " ";
-                SetText(_talkLines[i], string.IsNullOrEmpty(line) ? " " : line, Ink, 1,
-                    new Vector2(0f, 0.5f));
-            }
+            _talkBody = body ?? "";
+            _talkChars = CharsFor(Mathf.Min(_halfW * 2f - 1.0f, 27f) - 1.1f);
+            ApplyDialogueText();
             _talkGroup.gameObject.SetActive(true);
             HidePrompt();
+        }
+
+        string _talkBody = "";
+        int _talkChars = 62, _talkLineCount;
+
+        /// <summary>Bungkus isi dialog per kata sesuai lebar kotak (maks. 4 baris).</summary>
+        void ApplyDialogueText()
+        {
+            var lines = new List<string>();
+            string cur = "";
+            foreach (string word in _talkBody.Split(' '))
+            {
+                if (word.Length == 0) continue;
+                string w = word.Length > _talkChars ? word.Substring(0, _talkChars) : word;
+                if (cur.Length == 0) cur = w;
+                else if (cur.Length + 1 + w.Length <= _talkChars) cur += " " + w;
+                else { lines.Add(cur); cur = w; }
+            }
+            if (cur.Length > 0) lines.Add(cur);
+            int max = _talkLines.Length;
+            if (lines.Count > max)
+            {
+                string last = lines[max - 1];
+                lines[max - 1] = (last.Length + 3 > _talkChars ? last.Substring(0, Mathf.Max(1, _talkChars - 3)) : last) + "...";
+                lines.RemoveRange(max, lines.Count - max);
+            }
+            _talkLineCount = lines.Count;
+            for (int i = 0; i < _talkLines.Length; i++)
+            {
+                string line = i < lines.Count ? lines[i] : " ";
+                SetText(_talkLines[i], line, Ink, 1, new Vector2(0f, 0.5f));
+            }
         }
 
         public void HideDialogue()
         {
             if (_talkGroup != null) _talkGroup.gameObject.SetActive(false);
+            ClearDialoguePortraits();
         }
 
         public void SetNight(Color color, float amount)
@@ -414,7 +460,8 @@ namespace PixelAdventure.LifeSim
             _time += Time.unscaledDeltaTime;
             Layout();
 
-            float pulse = 0.55f + 0.45f * (Mathf.Sin(_time * 4.2f) * 0.5f + 0.5f);
+            // Denyut lembut dan lambat untuk teks petunjuk (tidak berkedip tajam agar mata tidak lelah).
+            float pulse = 0.78f + 0.22f * (Mathf.Sin(_time * 2.4f) * 0.5f + 0.5f);
             if (_talkGroup.gameObject.activeSelf) SetAlpha(_talkHint, pulse);
             if (_menuGroup.gameObject.activeSelf) SetAlpha(_menuHint, pulse);
             if (_promptGroup.gameObject.activeSelf) SetAlpha(_promptText, 0.85f + 0.15f * pulse);
@@ -449,10 +496,16 @@ namespace PixelAdventure.LifeSim
 
         void Layout()
         {
-            float halfH = _cam.orthographicSize;
+            // HUD mengikuti layar, bukan zoom kamera: skala akar = (zoom / ukuran dasar) x ukuran UI.
+            // Area tata letak (dalam unit HUD) = ukuran dasar / ukuran UI, jadi UI lebih besar = ruang lebih sempit.
+            float scale = _cam.orthographicSize / LifeGraphics.BaseCameraSize * LifeGraphics.UiScale;
+            if (!Mathf.Approximately(_root.localScale.x, scale)) _root.localScale = new Vector3(scale, scale, 1f);
+            _hudScale = scale;
+            float halfH = _cam.orthographicSize / scale;
             float halfW = halfH * _cam.aspect;
             _halfW = halfW;
             _halfH = halfH;
+            BeginPointerFrame();
 
             Fill(_nightDim, halfW, halfH);
             Fill(_dim, halfW, halfH);
@@ -475,29 +528,34 @@ namespace PixelAdventure.LifeSim
             float left = -halfW + 0.28f;
             float statsW = Mathf.Clamp(halfW * 2f - 8.4f - 0.56f - 0.4f, 10.5f, StatsPanelMaxW);
             if (Mathf.Abs(statsW - _statsW) > 0.01f) { _statsW = statsW; SetQuestLines(_lastQuest); }
-            const float statsH = 3.85f;
+            // Jarak antarbaris >= 0,62 (tinggi huruf 0,56) agar tidak ada baris yang menempel.
+            const float statsH = 4.75f;   // + satu baris: tabungan di bawah uang
             float padL = left + 0.5f, padR = left + _statsW - 0.5f;
             SetRect(_statsPanel, left + _statsW * 0.5f, top - statsH * 0.5f, _statsW, statsH);
 
-            float row1 = top - 0.58f;
+            float row1 = top - 0.6f;
             _dayText.transform.localPosition = new Vector3(padL, row1, 0f);
-            _clockIcon.transform.localPosition = new Vector3(padL + 3.35f, row1, 0f);
-            _timeText.transform.localPosition = new Vector3(padL + 3.95f, row1, 0f);
+            // Jam mengikuti lebar teks hari ("HARI 9" / "HARI 120") agar tidak pernah menempel.
+            float dayW = _dayText.sprite != null ? _dayText.sprite.bounds.size.x : 3f;
+            float clockX = padL + Mathf.Max(3.35f, dayW + 0.55f);
+            _clockIcon.transform.localPosition = new Vector3(clockX, row1, 0f);
+            _timeText.transform.localPosition = new Vector3(clockX + 0.6f, row1, 0f);
             _phaseText.transform.localPosition = new Vector3(padR, row1, 0f);
-            SetSolid(_statsRule1, left + _statsW * 0.5f, top - 1.05f, _statsW - 0.7f, 0.05f);
+            SetSolid(_statsRule1, left + _statsW * 0.5f, top - 1.1f, _statsW - 0.7f, 0.05f);
 
-            _questLabel.transform.localPosition = new Vector3(padL, top - 1.45f, 0f);
-            _questText.transform.localPosition = new Vector3(padL, top - 1.98f, 0f);
-            _questText2.transform.localPosition = new Vector3(padL, top - 2.52f, 0f);
-            SetSolid(_statsRule2, left + _statsW * 0.5f, top - 2.95f, _statsW - 0.7f, 0.05f);
+            _questLabel.transform.localPosition = new Vector3(padL, top - 1.52f, 0f);
+            _questText.transform.localPosition = new Vector3(padL, top - 2.14f, 0f);
+            _questText2.transform.localPosition = new Vector3(padL, top - 2.76f, 0f);
+            SetSolid(_statsRule2, left + _statsW * 0.5f, top - 3.2f, _statsW - 0.7f, 0.05f);
 
-            float row3 = top - 3.38f;
+            float row3 = top - 3.62f;
             _coinIcon.transform.localPosition = new Vector3(padL + 0.3f, row3, 0f);
             _moneyText.transform.localPosition = new Vector3(padL + 0.75f, row3, 0f);
-            _hungerText.transform.localPosition = new Vector3(padR, row3, 0f);
-            // Uang & tabungan sebaris: bila tidak muat, label "TABUNGAN" dipendekkan menjadi "TAB.".
-            int rowChars = Mathf.FloorToInt((padR - padL - 0.75f - 0.5f) / (6f / 16f));
-            bool shortSub = (_lastMoney ?? "").Length + (_lastSubline ?? "").Length > rowChars;
+            // Tabungan di baris sendiri, tepat di bawah uang & sejajar dengan teks uang (tidak berdempetan).
+            float row4 = row3 - 0.64f;
+            _hungerText.transform.localPosition = new Vector3(padL + 0.75f, row4, 0f);
+            int subChars = Mathf.FloorToInt((padR - padL - 0.75f) / PixelFont.CharW);
+            bool shortSub = (_lastSubline ?? "").Length > subChars;   // layar sangat sempit: "TABUNGAN" -> "TAB."
             if (shortSub != _sublineShort) { _sublineShort = shortSub; ApplySubline(); }
 
             _seedIcon.transform.localPosition = new Vector3(left + 0.62f, top - 2.45f, 0f);
@@ -521,30 +579,52 @@ namespace PixelAdventure.LifeSim
             _affNameText.transform.localPosition =
                 new Vector3(right - 0.55f, top - 2.12f, 0f);
 
+            // Panel status tidak bisa diklik, tetapi klik di atasnya tidak boleh menjadi "jalan ke sini".
+            if (PlayHitsOn)
+            {
+                Hit(UiHit.Blocker, 0, new Rect(left, top - statsH, _statsW, statsH), 0, false);
+                Hit(UiHit.Blocker, 1, new Rect(right - 8.4f, top - 2.76f, 8.4f, 2.76f), 0, false);
+            }
+
             // ---------------- toast
             _toast.transform.localPosition = new Vector3(0f, halfH * 0.42f, 0f);
 
             // ---------------- prompt
             if (_promptText.sprite != null)
             {
-                float pw = _promptText.sprite.bounds.size.x + 0.9f;
-                SetRect(_promptPanel, 0f, -halfH + 0.62f, Mathf.Max(2.2f, pw), 0.68f);
-                _promptText.transform.localPosition = new Vector3(0f, -halfH + 0.62f, 0f);
+                float pw = Mathf.Max(2.2f, _promptText.sprite.bounds.size.x + 0.9f);
+                // Di tengah bawah bila muat di antara minimap (kiri) dan tombol kanan bawah;
+                // bila tidak, naik ke atas keduanya agar tidak menumpuk.
+                float gapL = Mathf.Max(-halfW + 0.28f, _miniEdgeRight) + 0.2f;
+                float gapR = Mathf.Min(halfW - 0.28f, _toolEdgeLeft) - 0.2f;
+                float py = -halfH + 0.62f;
+                if (pw * 0.5f > Mathf.Min(-gapL, gapR))
+                    py = Mathf.Max(_miniEdgeTop, _toolEdgeTop, -halfH + 0.28f) + 0.55f;
+                SetRect(_promptPanel, 0f, py, pw, 0.68f);
+                _promptText.transform.localPosition = new Vector3(0f, py, 0f);
             }
 
             // ---------------- dialogue
+            // Teks dibungkus sesuai lebar kotak yang sebenarnya (tidak pernah keluar kotak);
+            // bila perlu 4 baris, kotak meninggi sedikit agar tidak ada kalimat yang terpotong.
             float dw = Mathf.Min(halfW * 2f - 1.0f, 27f);
-            float dh = 3.55f;
+            int talkChars = CharsFor(dw - 1.1f);
+            if (talkChars != _talkChars) { _talkChars = talkChars; ApplyDialogueText(); }
+            bool four = _talkLineCount > 3;
+            float lineStep = four ? 0.64f : 0.72f;
+            float dh = four ? 3.55f + lineStep : 3.55f;
             float dcy = -halfH + dh * 0.5f + 0.30f;
             SetRect(_talkPanel, 0f, dcy, dw, dh);
             float dlx = -dw * 0.5f + 0.55f;
             _talkSpeaker.transform.localPosition =
                 new Vector3(dlx, dcy + dh * 0.5f - 0.45f, 0f);
+            float firstLine = dcy + dh * 0.5f - 1.255f;
             for (int i = 0; i < _talkLines.Length; i++)
                 _talkLines[i].transform.localPosition =
-                    new Vector3(dlx, dcy + 0.52f - i * 0.72f, 0f);
+                    new Vector3(dlx, firstLine - i * lineStep, 0f);
             _talkHint.transform.localPosition =
                 new Vector3(dw * 0.5f - 0.55f, dcy - dh * 0.5f + 0.34f, 0f);
+            LayoutPortraits(dw, dcy, dh);
 
             LayoutMenu(halfW, halfH);
             LayoutWork(halfW, halfH);
@@ -555,12 +635,24 @@ namespace PixelAdventure.LifeSim
             LayoutTablet(halfW, halfH);
             LayoutProfile(halfW, halfH);
             LayoutContacts(halfW, halfH);
+            LayoutWorldMap(halfW, halfH);
+            LayoutSettings(halfW, halfH);
+            LayoutAmount(halfW, halfH);
             LayoutGuideButton(halfW, halfH);
+            LayoutToolbar(halfW, halfH);
             LayoutGuide(halfW, halfH);
             LayoutWorldUI(halfW, halfH);
             LayoutOverlays(halfW, halfH);
-            if (_pauseGroup != null && _pauseGroup.gameObject.activeSelf) CloseAt(7.5f, 3.6f, 3);
+            if (_pauseGroup != null && _pauseGroup.gameObject.activeSelf)
+            {
+                CloseAt(7.5f, 3.6f, 3);
+                // Baris jeda bisa diklik: 0 = lanjut, 1 = simpan & menu utama, 2 = suara.
+                Hit(UiHit.Pause, 0, RectAt(0f, 0.55f, 11f, 0.75f), 3);
+                Hit(UiHit.Pause, 1, RectAt(0f, -0.85f, 11f, 0.75f), 3);
+                Hit(UiHit.Pause, 2, RectAt(0f, -1.65f, 11f, 0.75f), 3);
+            }
             LayoutCloseButton();
+            EndPointerFrame();
         }
 
         void SetRow(float left, float y, float width, float height,

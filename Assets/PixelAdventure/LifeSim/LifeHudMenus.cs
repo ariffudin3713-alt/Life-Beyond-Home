@@ -12,6 +12,7 @@ namespace PixelAdventure.LifeSim
         readonly List<string> _menuOptionList = new List<string>();
         int _menuCount;
         int _menuSelected;
+        int _menuFitChars;   // 0 = muat semua; >0 = batas huruf per pilihan di layar sempit
 
         // ---------------------------------------------------------------- title fields
 
@@ -48,7 +49,7 @@ namespace PixelAdventure.LifeSim
             for (int i = 0; i < _menuOptions.Length; i++)
                 _menuOptions[i] = Text(_menuGroup, "Option" + i, " ", 1, Ink,
                     new Vector2(0f, 0.5f), 4012);
-            _menuHint = Text(_menuGroup, "Hint", "E - OK   ESC - BATAL", 1, Soft,
+            _menuHint = Text(_menuGroup, "Hint", "E / KLIK - OK   ESC - BATAL", 1, Soft,
                 new Vector2(0.5f, 0.5f), 4012);
             _menuGroup.gameObject.SetActive(false);
         }
@@ -80,6 +81,8 @@ namespace PixelAdventure.LifeSim
                 _menuOptions[i].gameObject.SetActive(show);
                 if (!show) continue;
                 string label = (i == _menuSelected ? "> " : "  ") + _menuOptionList[i];
+                if (_menuFitChars > 3 && label.Length > _menuFitChars)   // layar sempit: potong rapi, jangan keluar panel
+                    label = label.Substring(0, _menuFitChars - 2).TrimEnd() + "..";
                 bool quest = _menuOptionList[i].Length > 0 && _menuOptionList[i][0] == QuestMark;
                 Color color = i == _menuSelected ? Gold : (quest ? QuestColor : Ink);
                 SetText(_menuOptions[i], label, color, 1, new Vector2(0f, 0.5f));
@@ -97,11 +100,14 @@ namespace PixelAdventure.LifeSim
         {
             if (_menuGroup == null || !_menuGroup.gameObject.activeSelf) return;
             // Panel pilihan berada di tengah layar; lebarnya mengikuti teks terpanjang.
+            // Lebar diukur dari teks penuh (bukan yang sudah dipotong) agar panel tidak "berdenyut".
             float widest = _menuTitle.sprite != null ? _menuTitle.sprite.bounds.size.x : 0f;
             for (int i = 0; i < _menuCount; i++)
-                if (_menuOptions[i].sprite != null)
-                    widest = Mathf.Max(widest, _menuOptions[i].sprite.bounds.size.x);
-            float w = Mathf.Min(Mathf.Max(10.8f, widest + 1.3f), halfW * 2f - 1f);
+                widest = Mathf.Max(widest, (_menuOptionList[i].Length + 2) * UiCharW);
+            float maxW = halfW * 2f - 1f;
+            float w = Mathf.Min(Mathf.Max(10.8f, widest + 1.3f), maxW);
+            int fit = widest + 1.3f > maxW ? CharsFor(w - 1.1f) : 0;
+            if (fit != _menuFitChars) { _menuFitChars = fit; ApplyMenu(); }
             float h = 1.25f + _menuCount * 0.72f + 0.62f;
             float cx = 0f;
             float cy = 0f;
@@ -110,9 +116,14 @@ namespace PixelAdventure.LifeSim
             float lx = cx - w * 0.5f + 0.55f;
             _menuTitle.transform.localPosition = new Vector3(lx, cy + h * 0.5f - 0.5f, 0f);
             for (int i = 0; i < _menuOptions.Length; i++)
-                _menuOptions[i].transform.localPosition =
-                    new Vector3(lx, cy + h * 0.5f - 1.18f - i * 0.72f, 0f);
+            {
+                float oy = cy + h * 0.5f - 1.18f - i * 0.72f;
+                _menuOptions[i].transform.localPosition = new Vector3(lx, oy, 0f);
+                if (i < _menuCount) Hit(UiHit.Menu, i, RectAt(cx, oy, w - 0.6f, 0.68f), 3);
+            }
             _menuHint.transform.localPosition = new Vector3(cx, cy - h * 0.5f + 0.36f, 0f);
+            SetHint(_menuHint, "E / KLIK - OK   ESC - BATAL", Soft);
+            FitHint(_menuHint, w - 0.8f);
         }
 
         // ---------------------------------------------------------------- title
@@ -175,8 +186,8 @@ namespace PixelAdventure.LifeSim
             _pausePanel = Panel(_pauseGroup, "Panel", "lc_panel", 4010);
             SetRect(_pausePanel, 0f, 0f, 15f, 7.2f);
             _pauseTitle = Text(_pauseGroup, "Title", "JEDA", 3, Ink, new Vector2(0.5f, 0.5f), 4012);
-            _pausePrompt = Text(_pauseGroup, "Prompt", "P / ESC - LANJUT", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
-            _pauseHint = Text(_pauseGroup, "Hint", "H - SIMPAN & KE MENU UTAMA", 1, Soft, new Vector2(0.5f, 0.5f), 4012);
+            _pausePrompt = Text(_pauseGroup, "Prompt", "LANJUT BERMAIN  (P / ESC)", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
+            _pauseHint = Text(_pauseGroup, "Hint", "SIMPAN & KE MENU UTAMA  (H)", 1, Soft, new Vector2(0.5f, 0.5f), 4012);
             _pauseMute = Text(_pauseGroup, "Mute", "M - SUARA", 1, Soft, new Vector2(0.5f, 0.5f), 4012);
 
             _pauseTitle.transform.localPosition = new Vector3(0f, 2.2f, 0f);
@@ -188,7 +199,7 @@ namespace PixelAdventure.LifeSim
 
         public void ShowPause(bool muted)
         {
-            SetText(_pauseMute, "M - SUARA: " + (muted ? "MATI" : "NYALA"), Soft, 1,
+            SetText(_pauseMute, "SUARA: " + (muted ? "MATI" : "NYALA") + "  (M)", Soft, 1,
                 new Vector2(0.5f, 0.5f));
             SetDim(0.62f);
             _pauseGroup.gameObject.SetActive(true);
@@ -298,7 +309,7 @@ namespace PixelAdventure.LifeSim
             _endLine1 = Text(_endGroup, "Line1", " ", 1, Ink, new Vector2(0.5f, 0.5f), 4012);
             _endLine2 = Text(_endGroup, "Line2", " ", 2, Pink, new Vector2(0.5f, 0.5f), 4012);
             _endLine3 = Text(_endGroup, "Line3", "TERIMA KASIH SUDAH BERMAIN", 1, Soft, new Vector2(0.5f, 0.5f), 4012);
-            _endPrompt = Text(_endGroup, "Prompt", "ENTER - KEMBALI KE JUDUL", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
+            _endPrompt = Text(_endGroup, "Prompt", "ENTER / KLIK - KEMBALI KE JUDUL", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
 
             _endTitle.transform.localPosition = new Vector3(0f, 3.0f, 0f);
             _endSub.transform.localPosition = new Vector3(0f, 1.7f, 0f);

@@ -158,6 +158,22 @@ namespace PixelAdventure.LifeSim
             }
         }
 
+        /// <summary>Klik kanan mouse pada frame ini.</summary>
+        public static bool MouseRightClicked
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                Mouse m = Mouse.current;
+                return m != null && m.rightButton.wasPressedThisFrame;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+                return Input.GetMouseButtonDown(1);
+#else
+                return false;
+#endif
+            }
+        }
+
         /// <summary>Ketuk layar sentuh atau klik kiri mouse pada frame ini.</summary>
         public static bool PointerTapped
         {
@@ -457,6 +473,67 @@ namespace PixelAdventure.LifeSim
                 return key || button;
 #elif ENABLE_LEGACY_INPUT_MANAGER
                 return Input.GetKeyDown(KeyCode.T);
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>Angka 0-9 yang ditekan pada frame ini (baris angka atau numpad); -1 bila tidak ada.</summary>
+        public static int DigitPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                Keyboard kb = Keyboard.current;
+                if (kb == null) return -1;
+                if (kb.digit0Key.wasPressedThisFrame || kb.numpad0Key.wasPressedThisFrame) return 0;
+                if (kb.digit1Key.wasPressedThisFrame || kb.numpad1Key.wasPressedThisFrame) return 1;
+                if (kb.digit2Key.wasPressedThisFrame || kb.numpad2Key.wasPressedThisFrame) return 2;
+                if (kb.digit3Key.wasPressedThisFrame || kb.numpad3Key.wasPressedThisFrame) return 3;
+                if (kb.digit4Key.wasPressedThisFrame || kb.numpad4Key.wasPressedThisFrame) return 4;
+                if (kb.digit5Key.wasPressedThisFrame || kb.numpad5Key.wasPressedThisFrame) return 5;
+                if (kb.digit6Key.wasPressedThisFrame || kb.numpad6Key.wasPressedThisFrame) return 6;
+                if (kb.digit7Key.wasPressedThisFrame || kb.numpad7Key.wasPressedThisFrame) return 7;
+                if (kb.digit8Key.wasPressedThisFrame || kb.numpad8Key.wasPressedThisFrame) return 8;
+                if (kb.digit9Key.wasPressedThisFrame || kb.numpad9Key.wasPressedThisFrame) return 9;
+                return -1;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+                for (int i = 0; i <= 9; i++)
+                    if (Input.GetKeyDown(KeyCode.Alpha0 + i) || Input.GetKeyDown(KeyCode.Keypad0 + i)) return i;
+                return -1;
+#else
+                return -1;
+#endif
+            }
+        }
+
+        /// <summary>Backspace pada frame ini (dipakai saat mengetik angka; CancelPressed juga memuat backspace).</summary>
+        public static bool BackspacePressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                Keyboard kb = Keyboard.current;
+                return kb != null && (kb.backspaceKey.wasPressedThisFrame || kb.deleteKey.wasPressedThisFrame);
+#elif ENABLE_LEGACY_INPUT_MANAGER
+                return Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Delete);
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>F: buka / tutup peta besar.</summary>
+        public static bool MapPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                Keyboard kb = Keyboard.current;
+                return kb != null && kb.fKey.wasPressedThisFrame;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+                return Input.GetKeyDown(KeyCode.F);
 #else
                 return false;
 #endif

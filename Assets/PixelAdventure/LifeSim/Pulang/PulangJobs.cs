@@ -18,7 +18,7 @@ namespace PixelAdventure.LifeSim.Pulang
     }
 
     /// <summary>Kategori barang di inventori.</summary>
-    public enum ItemKind { Makanan, Hadiah, Perlengkapan, Misi, Kendaraan }
+    public enum ItemKind { Makanan, Hadiah, Perlengkapan, Misi, Kendaraan, Pakaian }
 
     public class ItemDef
     {
@@ -33,12 +33,16 @@ namespace PixelAdventure.LifeSim.Pulang
         public bool Engine;         // kendaraan bermesin (bisa dipakai antarwilayah, perlu bensin)
         public int TravelMinutes;   // lama berkendara sendiri ke wilayah lain
         public int Fuel;            // biaya bensin sekali jalan antarwilayah
+        public int Outfit = -1;     // pakaian: baris badan di spritesheet karakter (-1 = bukan pakaian)
+
+        public bool IsOutfit => Outfit >= 0;
 
         public bool IsVehicle => Speed > 0f;
 
         public ItemKind Kind =>
             Quest ? ItemKind.Misi
             : IsVehicle ? ItemKind.Kendaraan
+            : IsOutfit ? ItemKind.Pakaian
             : Energy > 0 ? ItemKind.Makanan
             : Gift != null ? ItemKind.Hadiah
             : ItemKind.Perlengkapan;
@@ -210,6 +214,38 @@ namespace PixelAdventure.LifeSim.Pulang
                 SoldAt = new[] { LocationId.TokoPancing },
                 Desc = "Syarat pekerjaan Nelayan di Pantai Cemara." },
 
+            // ---- Pakaian (Toko Pakaian, Pasar Ramai Jaya)
+            // Outfit = baris badan di spritesheet karakter; kepala tetap milik tokoh utama.
+            // Dipakai langsung saat dibeli; ganti/lepas lewat inventori (tab PAKAIAN) atau menu toko.
+            Outfit("kaos_merah",     "Kaos Polo Merah",       55000, 22, "Kaos polo merah cerah. Santai untuk jalan-jalan sore."),
+            Outfit("kemeja_hijau",   "Kemeja Hijau",          65000, 34, "Kemeja hijau lengan pendek, adem dipakai seharian."),
+            Outfit("kaos_toska",     "Kaos Toska & Celana Krem", 60000, 33, "Kaos toska dengan celana krem. Cocok untuk ke pantai."),
+            Outfit("kemeja_kotak",   "Kemeja Kotak Biru",     85000, 35, "Kemeja kotak-kotak biru ala anak kota."),
+            Outfit("kemeja_denim",   "Kemeja Denim",          95000, 24, "Kemeja denim biru tua yang awet dan gaya."),
+            Outfit("kemeja_marun",   "Kemeja Marun",          95000, 37, "Kemeja marun dengan ransel. Siap kuliah atau kerja."),
+            Outfit("kemeja_putih",   "Kemeja Putih Rapi",    100000, 32, "Kemeja putih bersih. Pas untuk melamar kerja."),
+            Outfit("seragam_putih",  "Setelan Putih Abu-abu", 90000, 30, "Kemeja putih dan celana abu-abu, rapi seperti anak sekolah."),
+            Outfit("kemeja_pantai",  "Kemeja Pantai",        110000, 51, "Kemeja motif bunga warna toska. Liburan banget!"),
+            Outfit("flanel_merah",   "Kemeja Flanel Merah",  120000, 2,  "Flanel kotak merah dengan celana jeans."),
+            Outfit("hoodie_navy",    "Hoodie Navy",          140000, 31, "Hoodie biru dongker yang hangat untuk malam hari."),
+            Outfit("jaket_hitam",    "Jaket Hitam",          150000, 21, "Jaket hitam dengan jeans biru. Keren di mana saja."),
+            Outfit("jaket_kurir",    "Jaket Hijau Lapangan", 130000, 72, "Jaket hijau tebal ala kurir. Tahan angin di jalan."),
+            Outfit("rompi_foto",     "Rompi Fotografer",     160000, 71, "Rompi krem banyak saku dan celana kargo. Gaya fotografer."),
+            Outfit("batik_hijau",    "Kemeja Batik",         180000, 18, "Kemeja batik motif kembang. Pantas untuk acara resmi."),
+            Outfit("jas_kantor",     "Setelan Jas Kantor",   350000, 38, "Jas biru tua dan dasi merah. Tampil profesional."),
+
+            // ---- Barang misi sampingan (diberikan pemberi misi, diserahkan kepada penerima)
+            new ItemDef { Id = "rantang_siti", Name = "Rantang Bu Siti", Quest = true,
+                Desc = "Masakan Bu Siti untuk Pak Slamet di Pos Ronda Kampung Cempaka." },
+            new ItemDef { Id = "suku_cadang", Name = "Kotak Suku Cadang", Quest = true,
+                Desc = "Pesanan Pak Hadi di Terminal Jogokerto dari Bengkel Jaya Motor." },
+            new ItemDef { Id = "sayur_pesanan", Name = "Sayur Pesanan Kafe", Quest = true,
+                Desc = "Sayuran segar dari Pak Rudi untuk Riko di Cafe Senja." },
+            new ItemDef { Id = "titipan_rukmini", Name = "Bungkusan Bumbu", Quest = true,
+                Desc = "Titipan Bu Rukmini untuk Bu Sari di Pasar Ramai Jaya." },
+            new ItemDef { Id = "obat_ternak", Name = "Vitamin Ternak", Quest = true,
+                Desc = "Paket dari Rumah Sakit Sehat untuk Pak Karman di Peternakan Kecil." },
+
 
             // ---- Barang misi (didapat dari cerita, dipakai untuk menyelesaikan misi)
             new ItemDef { Id = "tas", Name = "Tas Ransel", Quest = true,
@@ -238,6 +274,10 @@ namespace PixelAdventure.LifeSim.Pulang
             foreach (var i in All) if (i.Id == id) return i;
             return null;
         }
+
+        static ItemDef Outfit(string id, string name, int price, int sheetRow, string desc) =>
+            new ItemDef { Id = id, Name = name, Price = price, Outfit = sheetRow, Desc = desc,
+                SoldAt = new[] { LocationId.TokoPakaian } };
 
         public static IEnumerable<ItemDef> SoldAt(LocationId loc)
         {

@@ -55,6 +55,10 @@ namespace PixelAdventure.LifeSim.Pulang
 
         // Tempat ibadah (bisa dimasuki & dipakai beribadah)
         MasjidKota, GerejaKota,
+
+        // Halte bus Pantai Cemara (terminal pantai di tepi jalan, bukan di bibir laut).
+        // Ditaruh paling akhir agar urutan simpanan lama tetap sama.
+        TerminalPantai,
     }
 
     public enum Chapter { Prolog = 0, Ch1 = 1, Ch2 = 2, Ch3 = 3, Ch4 = 4, Ch5 = 5, Ch6 = 6, Ending = 7 }
@@ -160,6 +164,7 @@ namespace PixelAdventure.LifeSim.Pulang
             new LocationDef(LocationId.WarkopDesa,      Region.DesaSukaMakmur, "Warkop Bang Udin",       Chapter.Prolog),
             new LocationDef(LocationId.MasjidKota,      Region.KotaJogokerto,  "Masjid Al-Ikhlas",       Chapter.Ch1),
             new LocationDef(LocationId.GerejaKota,      Region.KotaJogokerto,  "Gereja Kasih Karunia",   Chapter.Ch1),
+            new LocationDef(LocationId.TerminalPantai,  Region.PantaiCemara,   "Halte Pantai Cemara",    Chapter.Ch2),
         };
 
         /// <summary>Tarif semalam di penginapan (energi pulih penuh, bangun pukul 06.00).</summary>
@@ -184,13 +189,76 @@ namespace PixelAdventure.LifeSim.Pulang
             { Region.KotaJogokerto,  4000 }, // arah balik; dokumen tidak menyebut, disamakan
         };
 
+        // ------------------------------------------------------------ jalan kaki antar wilayah
+        // Selain naik bus, wilayah yang bersebelahan tersambung lewat ujung jalan utama
+        // (kiri/kanan peta). Berjalan ke ujung peta = pindah ke wilayah sebelah.
+        //   Desa Suka Makmur - Kampung Cempaka - Kota Jogokerto - Pasar Ramai Jaya - Pantai Cemara
+
+        /// <summary>Wilayah di balik ujung KIRI peta.</summary>
+        public static readonly Dictionary<Region, Region> EdgeLeft = new Dictionary<Region, Region>
+        {
+            { Region.KampungCempaka, Region.DesaSukaMakmur },
+            { Region.KotaJogokerto,  Region.KampungCempaka },
+            { Region.PasarRamaiJaya, Region.KotaJogokerto },
+            { Region.PantaiCemara,   Region.PasarRamaiJaya },
+        };
+
+        /// <summary>Wilayah di balik ujung KANAN peta.</summary>
+        public static readonly Dictionary<Region, Region> EdgeRight = new Dictionary<Region, Region>
+        {
+            { Region.DesaSukaMakmur, Region.KampungCempaka },
+            { Region.KampungCempaka, Region.KotaJogokerto },
+            { Region.KotaJogokerto,  Region.PasarRamaiJaya },
+            { Region.PasarRamaiJaya, Region.PantaiCemara },
+        };
+
+        /// <summary>Tengah jalan utama (horizontal) tiap wilayah: titik muncul saat masuk dari ujung peta.</summary>
+        public static readonly Dictionary<Region, float> EdgeRoadY = new Dictionary<Region, float>
+        {
+            { Region.DesaSukaMakmur, 31.5f },
+            { Region.KotaJogokerto,  34f },
+            { Region.KampungCempaka, 31.5f },
+            { Region.PasarRamaiJaya, 32f },
+            { Region.PantaiCemara,   12f },
+        };
+
+        /// <summary>Tepi atas jalan utama (untuk papan penunjuk di ujung peta).</summary>
+        public static readonly Dictionary<Region, float> EdgeRoadTop = new Dictionary<Region, float>
+        {
+            { Region.DesaSukaMakmur, 33f },
+            { Region.KotaJogokerto,  38f },
+            { Region.KampungCempaka, 33f },
+            { Region.PasarRamaiJaya, 34f },
+            { Region.PantaiCemara,   14f },
+        };
+
+        /// <summary>
+        /// Aturan berjalan kaki ke wilayah sebelah: sama dengan aturan perjalanan
+        /// (Desa dikunci, tempat belum dibuka), tetapi tanpa tiket.
+        /// </summary>
+        public static bool CanWalkTo(Region target, Chapter current, out string reason)
+        {
+            reason = null;
+            if (target == Region.DesaSukaMakmur && current >= Chapter.Ch1 && current < Chapter.Ch6)
+            {
+                reason = PulangProfile.Format("{nama}: \"Nanti kalau sudah sukses, aku pulang.\"");
+                return false;
+            }
+            if (!IsOpen(ArrivalPoint[target], current))
+            {
+                reason = "Tempat ini belum bisa dikunjungi.";
+                return false;
+            }
+            return true;
+        }
+
         public static readonly Dictionary<Region, LocationId> ArrivalPoint = new Dictionary<Region, LocationId>
         {
             { Region.DesaSukaMakmur, LocationId.TerminalDesa },
             { Region.KotaJogokerto,  LocationId.TerminalJogokerto },
             { Region.KampungCempaka, LocationId.TerminalCempaka },
             { Region.PasarRamaiJaya, LocationId.PasarTradisional },
-            { Region.PantaiCemara,   LocationId.PantaiCemara },
+            { Region.PantaiCemara,   LocationId.TerminalPantai },   // bus tiba di halte, bukan di bibir laut
         };
 
         static Dictionary<LocationId, LocationDef> _byId;
@@ -205,7 +273,11 @@ namespace PixelAdventure.LifeSim.Pulang
             return _byId[id];
         }
 
-        public static bool IsOpen(LocationId id, Chapter current) => current >= Get(id).OpensAt;
+        /// <summary>
+        /// Dunia terbuka: sejak tiba di kota (Chapter 1) semua tempat di luar desa bisa dikunjungi,
+        /// jadi pemain bebas menjelajah tanpa menunggu misi utama. OpensAt hanya berlaku di Prolog.
+        /// </summary>
+        public static bool IsOpen(LocationId id, Chapter current) => current >= Chapter.Ch1 || current >= Get(id).OpensAt;
 
         /// <summary>
         /// Aturan perjalanan. Desa Suka Makmur sengaja dikunci sejak berangkat merantau
@@ -223,7 +295,7 @@ namespace PixelAdventure.LifeSim.Pulang
                 }
                 if (current >= Chapter.Ch6) return true; // perjalanan terakhir tidak boleh gagal karena uang
             }
-            if (Get(ArrivalPoint[target]).OpensAt > current)
+            if (!IsOpen(ArrivalPoint[target], current))
             {
                 reason = "Tempat ini belum bisa dikunjungi.";
                 return false;

@@ -135,7 +135,7 @@ namespace PixelAdventure.LifeSim
 
         void BuildRoom(InteriorKind kind, LocationId id, float L, float B, int w, int h)
         {
-            string staff = "lc_warga" + (1 + ((int)id % 6)) + "_down_0";
+            string staff = LifeArt.StaffSprite(kind, (int)id);
             float wallY = B + h + 0.55f;
 
             switch (kind)
@@ -412,7 +412,7 @@ namespace PixelAdventure.LifeSim
                     break;
 
                 default: // kantor
-                    Item(staff.Replace("_down_0", "_down_0"), L + 3f, B + 6.9f, 0.6f, 0.4f);
+                    Item(LifeArt.StaffSprite(kind, (int)id + 1, true), L + 3f, B + 6.9f, 0.6f, 0.4f);
                     Item("lc_int_desk", L + 3f, B + 5.8f, 2.5f, 0.8f);
                     Item("lc_int_desk", L + 6.5f, B + 5.8f, 2.5f, 0.8f);
                     Item("lc_int_bookshelf", L + 12f, B + 6.6f, 3f, 0.8f);

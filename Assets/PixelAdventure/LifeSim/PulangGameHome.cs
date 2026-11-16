@@ -68,7 +68,7 @@ namespace PixelAdventure.LifeSim
                     new HomeOption("GAME BARU", "MULAI CERITA DI SLOT PILIHAN"),
                     new HomeOption("SLOT SIMPANAN", "MUAT ATAU HAPUS SIMPANAN"),
                     new HomeOption("PANDUAN", "CARA BERMAIN: KONTROL, MISI, KERJA, TEMPAT, TEMAN"),
-                    new HomeOption(GameAudio.Muted ? "SUARA: MATI" : "SUARA: NYALA", "NYALAKAN / MATIKAN MUSIK DAN EFEK SUARA"),
+                    new HomeOption("PENGATURAN", "GRAFIK (FPS, RESOLUSI, ZOOM, UKURAN UI) & SUARA"),
                     new HomeOption("KELUAR", "TUTUP PERMAINAN"),
                 };
                 _hud.ShowHome(options, _homeIndex);
@@ -80,10 +80,10 @@ namespace PixelAdventure.LifeSim
 
             string title = _slotMode == SlotMode.NewGame ? "GAME BARU - PILIH SLOT" : "SLOT SIMPANAN";
             string hint = _confirmOverwrite || _confirmDelete
-                ? "E - YA    ESC - TIDAK"
+                ? "E / KLIK SLOT - YA    ESC / X - TIDAK"
                 : _slotMode == SlotMode.NewGame
-                    ? "W/S - PILIH    E - MULAI DI SLOT INI    ESC - KEMBALI"
-                    : "W/S - PILIH    E - MUAT    X / DEL - HAPUS    ESC - KEMBALI";
+                    ? "W/S - PILIH    E / KLIK - MULAI DI SLOT INI    ESC - KEMBALI"
+                    : "W/S - PILIH   E / KLIK - MUAT   X / DEL / KLIK KANAN - HAPUS   ESC - KEMBALI";
             _hud.ShowSlots(title, slots, _slotIndex, _slotMessage, hint);
         }
 
@@ -141,6 +141,14 @@ namespace PixelAdventure.LifeSim
                 ActivateHomeOption();
                 return;
             }
+            // Kursor: arahkan ke tombol = pilih.
+            if (_hud.PointerHover(UiHit.HomeOption, out int hover) && hover != _homeIndex && hover < HomeOptionCount)
+            {
+                _homeIndex = hover;
+                GameAudio.Play("click", 0.25f);
+                RefreshHome();
+                return;
+            }
             if (LifeInput.UpPressed || LifeInput.DownPressed)
             {
                 int dir = LifeInput.UpPressed ? -1 : 1;
@@ -173,10 +181,10 @@ namespace PixelAdventure.LifeSim
                     _guideFromHome = true;
                     OpenGuide(false);
                     break;
-                case 4: // SUARA
-                    GameAudio.ToggleMute();
+                case 4: // PENGATURAN (grafik & suara)
                     GameAudio.Play("confirm", 0.5f);
-                    RefreshHome();
+                    _hud.HideHome();
+                    OpenSettingsMenu(ShowTitle);
                     break;
                 case 5: // KELUAR
                     GameAudio.Play("tablet_off", 0.5f);
@@ -220,7 +228,9 @@ namespace PixelAdventure.LifeSim
             // ---- konfirmasi timpa / hapus
             if (_confirmOverwrite || _confirmDelete)
             {
-                if (LifeInput.InteractPressed)
+                // Kursor: klik lagi kartu slot yang sama = ya; tombol X = batal.
+                bool confirmClick = _hud.SlotTappedIndex() == _slotIndex;
+                if (LifeInput.InteractPressed || confirmClick)
                 {
                     if (_confirmOverwrite)
                     {
@@ -262,6 +272,17 @@ namespace PixelAdventure.LifeSim
                 return;
             }
 
+            // Kursor: arahkan ke kartu slot = pilih.
+            if (_hud.PointerHover(UiHit.SlotCard, out int hoverSlot) && hoverSlot != _slotIndex
+                && hoverSlot < PulangSaveData.SlotCount)
+            {
+                _slotIndex = hoverSlot;
+                _slotMessage = null;
+                GameAudio.Play("click", 0.25f);
+                RefreshHome();
+                return;
+            }
+
             // Ketuk kartu slot = pilih + konfirmasi.
             int tappedSlot = _hud.SlotTappedIndex();
             bool tapConfirm = tappedSlot >= 0;
@@ -269,7 +290,15 @@ namespace PixelAdventure.LifeSim
 
             bool filled = PulangSaveData.HasSlot(_slotIndex);
 
-            if (_slotMode == SlotMode.Load && LifeInput.DeletePressed)
+            // Klik kanan kartu slot = hapus (sama dengan X / DEL).
+            int rightSlot = -1;
+            bool rightClickSlot = LifeInput.MouseRightClicked && _hud.PointerOver(UiHit.SlotCard, out rightSlot);
+            if (rightClickSlot)
+            {
+                _slotIndex = rightSlot;
+                filled = PulangSaveData.HasSlot(_slotIndex);
+            }
+            if (_slotMode == SlotMode.Load && (LifeInput.DeletePressed || rightClickSlot))
             {
                 if (!filled) { GameAudio.Play("error", 0.4f); return; }
                 _confirmDelete = true;

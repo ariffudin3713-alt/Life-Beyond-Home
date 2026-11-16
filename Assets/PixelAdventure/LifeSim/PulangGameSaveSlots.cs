@@ -11,7 +11,14 @@ namespace PixelAdventure.LifeSim
     /// </summary>
     public partial class PulangGame
     {
-        void OpenSaveSlotMenu()
+        void OpenSaveSlotMenu() =>
+            OpenSlotPicker("SIMPAN KE SLOT MANA?", SaveToSlot, () => OpenTabletWith(null));
+
+        /// <summary>
+        /// Menu pilih slot (1–3) yang dipakai bersama: tablet SIMPAN dan TIDUR di kamar / penginapan.
+        /// Slot berisi permainan lain meminta konfirmasi dulu. <paramref name="onCancel"/> null = kembali bermain.
+        /// </summary>
+        void OpenSlotPicker(string title, Action<int> onPick, Action onCancel)
         {
             var labels = new List<string>();
             var actions = new List<Action>();
@@ -19,14 +26,45 @@ namespace PixelAdventure.LifeSim
             {
                 int slot = i;
                 labels.Add(SaveSlotLabel(slot));
-                actions.Add(() => ChooseSaveSlot(slot));
+                actions.Add(() => ConfirmSlot(slot, onPick, () => OpenSlotPicker(title, onPick, onCancel)));
             }
             labels.Add("BATAL");
-            actions.Add(() => OpenTabletWith(null));
-            OpenMenu("SIMPAN KE SLOT MANA?", labels, actions, true, () => OpenTabletWith(null));
+            actions.Add(onCancel);
+            OpenMenu(title, labels, actions, true, onCancel);
             _menuSelected = PulangSaveData.ActiveSlot;
             _hud.SetMenuSelection(_menuSelected);
         }
+
+        void ConfirmSlot(int slot, Action<int> onPick, Action reopen)
+        {
+            var d = PulangSaveData.Peek(slot);
+            // Menimpa permainan lain (bukan slot yang sedang dimainkan): tanya dulu.
+            if (d != null && slot != PulangSaveData.ActiveSlot)
+            {
+                string who = string.IsNullOrEmpty(d.playerName) ? PulangProfile.DefaultName : d.playerName;
+                OpenMenu("TIMPA SLOT " + (slot + 1) + " (" + who.ToUpperInvariant() + ", HARI " + d.day + ")?",
+                    new List<string> { "YA, TIMPA DENGAN PERMAINAN INI", "TIDAK, PILIH SLOT LAIN" },
+                    new List<Action> { () => onPick(slot), reopen },
+                    true, reopen);
+                _menuSelected = 1;   // pilihan aman lebih dulu
+                _hud.SetMenuSelection(1);
+                return;
+            }
+            onPick(slot);
+        }
+
+        // ------------------------------------------------------------------ tidur + simpan
+
+        /// <summary>
+        /// Tidur manual (kamar rumah / kost / penginapan): pilih slot dulu, lalu tidur.
+        /// Permainan disimpan ke slot itu saat bangun pagi (SleepRoutine), dan slot itu menjadi slot aktif.
+        /// </summary>
+        void ChooseSleepSlot(Action<int> sleep) =>
+            OpenSlotPicker("TIDUR - SIMPAN KE SLOT MANA?", slot =>
+            {
+                PulangSaveData.ActiveSlot = slot;
+                sleep(slot);
+            }, null);
 
         /// <summary>Mis. "SLOT 2   ZIDAN - CHAPTER 3, HARI 12   13/11/2026 17:20   [AKTIF]".</summary>
         static string SaveSlotLabel(int slot)
@@ -40,24 +78,6 @@ namespace PixelAdventure.LifeSim
             string chapter = q == null ? "" : ", " + ChapterLabel(q.Chapter);
             string saved = string.IsNullOrEmpty(d.savedAt) ? "" : "   " + d.savedAt;
             return (head + name + chapter + ", HARI " + d.day + saved + active).ToUpperInvariant();
-        }
-
-        void ChooseSaveSlot(int slot)
-        {
-            var d = PulangSaveData.Peek(slot);
-            // Menimpa permainan lain (bukan slot yang sedang dimainkan): tanya dulu.
-            if (d != null && slot != PulangSaveData.ActiveSlot)
-            {
-                string who = string.IsNullOrEmpty(d.playerName) ? PulangProfile.DefaultName : d.playerName;
-                OpenMenu("TIMPA SLOT " + (slot + 1) + " (" + who.ToUpperInvariant() + ", HARI " + d.day + ")?",
-                    new List<string> { "YA, TIMPA DENGAN PERMAINAN INI", "TIDAK, PILIH SLOT LAIN" },
-                    new List<Action> { () => SaveToSlot(slot), OpenSaveSlotMenu },
-                    true, OpenSaveSlotMenu);
-                _menuSelected = 1;   // pilihan aman lebih dulu
-                _hud.SetMenuSelection(1);
-                return;
-            }
-            SaveToSlot(slot);
         }
 
         void SaveToSlot(int slot)

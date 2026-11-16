@@ -125,6 +125,7 @@ namespace PixelAdventure.LifeSim
                 ui.Solid(tx, tabY, tabW - 0.24f, 0.7f, sel ? InvTabOn : InvTabOff, 2);
                 if (sel) ui.Solid(tx, tabY - 0.35f, tabW - 0.24f, 0.08f, Gold, 3);
                 ui.Text(Fit(_contactTabs[i], CharsFor(tabW - 0.5f)), tx, tabY, sel ? Gold : Soft, 1, 0.5f);
+                if (_contactPicker == null) Hit(UiHit.ContactTab, i, RectAt(tx, tabY, tabW - 0.24f, 0.7f));
             }
 
             float bodyTop = top - 2.55f, bodyBottom = -top + 1.5f, bodyH = bodyTop - bodyBottom;
@@ -147,7 +148,7 @@ namespace PixelAdventure.LifeSim
 
             if (!string.IsNullOrEmpty(_contactMessage))
                 ui.Text(Fit(_contactMessage, CharsFor(w - 1.6f)), 0f, -top + 1.0f, Pink, 1, 0.5f);
-            ui.Text(Fit(_contactHint, CharsFor(w - 1.6f)), 0f, -top + 0.45f, Gold, 1, 0.5f);
+            ui.Text(CompactHint(_contactHint, CharsFor(w - 1.6f)), 0f, -top + 0.45f, Gold, 1, 0.5f);
             if (_contactPicker != null) LayoutContactPicker(ui, _contactPicker, w, h);
             ui.End();
         }
@@ -201,6 +202,7 @@ namespace PixelAdventure.LifeSim
                 var o = p.Options[i];
                 bool sel = i == p.Selected;
                 ui.Solid(0f, y, inner, rowH, sel ? InvTabOn : InvTabOff, 8);
+                Hit(UiHit.Picker, i, RectAt(0f, y, inner, rowH), 4);
                 if (sel) ui.Solid(left + 0.6f + 0.05f, y, 0.1f, rowH, Gold, 9);
                 Color lc = !o.Enabled ? HomeDisabled : sel ? Gold : Ink;
                 float lx = x0 + 0.45f;
@@ -217,7 +219,7 @@ namespace PixelAdventure.LifeSim
                 y -= rowH + rowGap;
             }
 
-            ui.Text(Fit("W/S - PILIH   E - OK   ESC - BATAL", CharsFor(inner)), 0f, -top + 0.5f, Gold, 1, 0.5f, 9);
+            ui.Text(CompactHint("W/S - PILIH   E / KLIK - OK   ESC - BATAL", CharsFor(inner)), 0f, -top + 0.5f, Gold, 1, 0.5f, 9);
         }
 
         void LayoutContactList(UiPool ui, float cx, float lw, float bodyTop, float bodyBottom)
@@ -243,6 +245,7 @@ namespace PixelAdventure.LifeSim
                 float y = rowsTop - i * ContactRowH;
                 bool sel = idx == _contactSel;
                 if (sel) ui.Solid(cx, y, lw - 0.3f, ContactRowH - 0.14f, InvRowSel, 2);
+                if (_contactPicker == null) Hit(UiHit.ContactRow, idx, RectAt(cx, y, lw - 0.3f, ContactRowH - 0.06f));
                 else if (i > 0) ui.Solid(cx, y + ContactRowH * 0.5f, lw - 0.7f, 0.04f, JRule, 2);   // garis pemisah tipis
                 // potret kecil dalam bingkai
                 ui.Solid(l + 0.55f, y, 0.95f, ContactRowH - 0.34f, InvFrame, 2);
@@ -300,6 +303,7 @@ namespace PixelAdventure.LifeSim
             if (hasAction)
             {
                 ui.Solid(x0 + dw * 0.5f, btnY, dw, 0.72f, d.ActionEnabled ? InvBtnOn : InvBtnOff, 2);
+                if (_contactPicker == null) Hit(UiHit.ContactAction, 0, RectAt(x0 + dw * 0.5f, btnY, dw, 0.72f));
                 ui.Text(Fit(d.Action, CharsFor(dw - 0.5f)), x0 + dw * 0.5f, btnY, d.ActionEnabled ? Ink : Soft, 1, 0.5f);
             }
             float floor = hasAction ? btnY + 0.75f : bodyBottom + 0.35f;

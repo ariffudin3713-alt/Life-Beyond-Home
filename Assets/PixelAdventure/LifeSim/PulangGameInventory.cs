@@ -18,8 +18,8 @@ namespace PixelAdventure.LifeSim
     public partial class PulangGame
     {
         static readonly ItemKind?[] InventoryTabs =
-            { null, ItemKind.Makanan, ItemKind.Hadiah, ItemKind.Perlengkapan, ItemKind.Kendaraan, ItemKind.Misi };
-        static readonly string[] InventoryTabNames = { "SEMUA", "MAKANAN", "HADIAH", "ALAT", "KENDARAAN", "MISI" };
+            { null, ItemKind.Makanan, ItemKind.Hadiah, ItemKind.Perlengkapan, ItemKind.Pakaian, ItemKind.Kendaraan, ItemKind.Misi };
+        static readonly string[] InventoryTabNames = { "SEMUA", "MAKANAN", "HADIAH", "ALAT", "PAKAIAN", "KENDARAAN", "MISI" };
 
         int _invTab, _invIndex;
         string _invMessage;
@@ -121,6 +121,8 @@ namespace PixelAdventure.LifeSim
         string QuestTitleFor(string id)
         {
             if (_story.Data == null || id == "tas" || id == "barang_pribadi" || id == "kunci_kost") return null;
+            string side = SideQuestTitleForItem(id);
+            if (side != null) return "Sampingan: " + side;
             return _story.Current.Title;
         }
 
@@ -156,7 +158,7 @@ namespace PixelAdventure.LifeSim
         }
 
         static int KindOrder(ItemKind k) =>
-            k == ItemKind.Misi ? 0 : k == ItemKind.Kendaraan ? 1 : k == ItemKind.Makanan ? 2 : k == ItemKind.Hadiah ? 3 : 4;
+            k == ItemKind.Misi ? 0 : k == ItemKind.Kendaraan ? 1 : k == ItemKind.Pakaian ? 2 : k == ItemKind.Makanan ? 3 : k == ItemKind.Hadiah ? 4 : 5;
 
         void RefreshInventory()
         {
@@ -198,6 +200,15 @@ namespace PixelAdventure.LifeSim
                     e.Effect = "SYARAT PEKERJAAN - TIDAK HABIS DIPAKAI";
                     e.Action = " ";
                     break;
+                case ItemKind.Pakaian:
+                {
+                    bool worn = D.outfit == it.Id;
+                    e.Icon = LifeArt.OutfitIcon(it.Outfit);
+                    e.Effect = worn ? "SEDANG DIPAKAI" : "BELI LAGI MODEL LAIN DI TOKO PAKAIAN";
+                    e.Action = worn ? "E - LEPAS (BAJU HARIAN)" : "E - PAKAI";
+                    e.Usable = true;
+                    break;
+                }
                 case ItemKind.Kendaraan:
                 {
                     bool riding = D.vehicle == it.Id;
@@ -235,6 +246,11 @@ namespace PixelAdventure.LifeSim
                 case "oleh_oleh": return "KIRIM LEWAT PAK HADI DI TERMINAL JOGOKERTO";
                 case "buku_catatan_nabila": return "BICARA DENGAN NABILA UNTUK MENYERAHKAN";
                 case "barang_bawaan": return "BAWA PULANG KE DESA SUKA MAKMUR";
+                case "rantang_siti": return "BICARA DENGAN PAK SLAMET UNTUK MENYERAHKAN";
+                case "suku_cadang": return "BICARA DENGAN PAK HADI UNTUK MENYERAHKAN";
+                case "sayur_pesanan": return "BICARA DENGAN RIKO DI CAFE SENJA";
+                case "titipan_rukmini": return "BICARA DENGAN BU SARI UNTUK MENYERAHKAN";
+                case "obat_ternak": return "BICARA DENGAN PAK KARMAN UNTUK MENYERAHKAN";
                 default: return "KENANGAN DARI RUMAH";
             }
         }
@@ -250,6 +266,35 @@ namespace PixelAdventure.LifeSim
             }
 
             var rows = InventoryRows();
+
+            // Kursor: klik tab = ganti kategori; arahkan ke barang = pilih; klik barang terpilih = pakai.
+            if (_hud.PointerClick(UiHit.InvTab, out int tab) && tab != _invTab && tab < InventoryTabs.Length)
+            {
+                _invTab = tab;
+                _invIndex = 0;
+                _invMessage = null;
+                GameAudio.Play("click", 0.35f);
+                RefreshInventory();
+                return;
+            }
+            bool useClick = false;
+            if (rows.Count > 0)
+            {
+                int pick = -1;
+                if (_hud.PointerClick(UiHit.InvRow, out int clickRow)) { useClick = clickRow == _invIndex; pick = clickRow; }
+                else if (_hud.PointerHover(UiHit.InvRow, out int hoverRow)) pick = hoverRow;
+                float wheel = LifeInput.ScrollWheel;
+                if (pick < 0 && wheel != 0f) pick = Mathf.Clamp(_invIndex + (wheel > 0f ? -1 : 1), 0, rows.Count - 1);
+                if (pick >= 0 && pick < rows.Count && pick != _invIndex)
+                {
+                    _invIndex = pick;
+                    _invMessage = null;
+                    GameAudio.Play("click", 0.25f);
+                    RefreshInventory();
+                    return;
+                }
+            }
+
             if (LifeInput.LeftPressed || LifeInput.RightPressed)
             {
                 int dir = LifeInput.LeftPressed ? -1 : 1;
@@ -269,7 +314,7 @@ namespace PixelAdventure.LifeSim
                 RefreshInventory();
                 return;
             }
-            if ((LifeInput.InteractPressed || LifeInput.VehiclePressed) && rows.Count > 0)
+            if ((LifeInput.InteractPressed || LifeInput.VehiclePressed || useClick) && rows.Count > 0)
             {
                 var it = rows[_invIndex].Key;
                 if (it.Kind == ItemKind.Kendaraan)
@@ -277,11 +322,15 @@ namespace PixelAdventure.LifeSim
                     UseVehicleFromBag(it);
                     return;
                 }
-                if (!LifeInput.InteractPressed) return;
+                if (!LifeInput.InteractPressed && !useClick) return;
                 if (it.Kind == ItemKind.Makanan)
                 {
                     EatFromBag(it.Id);
                     _invMessage = ("MAKAN " + it.Name + " - ENERGI " + D.energy + "/100").ToUpperInvariant();
+                }
+                else if (it.Kind == ItemKind.Pakaian)
+                {
+                    _invMessage = ToggleOutfit(it);
                 }
                 else
                 {

@@ -131,7 +131,7 @@ namespace PixelAdventure.LifeSim
         static readonly LocationId[] TravelPoints =
         {
             LocationId.TerminalDesa, LocationId.TerminalJogokerto, LocationId.TerminalCempaka,
-            LocationId.PasarTradisional, LocationId.PantaiCemara,
+            LocationId.PasarTradisional, LocationId.TerminalPantai,   // Pantai: halte di tepi jalan, bukan titik pantai di bibir laut
         };
 
         void UpdateInteraction()
@@ -195,7 +195,7 @@ namespace PixelAdventure.LifeSim
                 case Target.Location:
                     _hud.SetPrompt((_world.IsEnterable(_targetLoc) ? "E - MASUK " : "E - ") + PulangWorld.Get(_targetLoc).Name.ToUpperInvariant()); break;
                 default:
-                    _hud.SetPrompt(null); break;
+                    _hud.SetPrompt(EdgePrompt()); break;   // dekat ujung peta: petunjuk wilayah sebelah
             }
         }
 
@@ -401,6 +401,9 @@ namespace PixelAdventure.LifeSim
                 if (q.Sequential) break;
             }
 
+            // Misi sampingan: langkah "temui X" yang sedang berjalan, atau tawaran misi baru.
+            if (TrySideTalk(id)) return;
+
             if (GirlIndex(id) >= 0) { RomanceTalk(id); return; }
             Say(GreetingFor(id), null);
         }
@@ -585,9 +588,18 @@ namespace PixelAdventure.LifeSim
             if (loc == LocationId.MasjidKota) Add(PrayerLabel(), () => Worship(true));
             if (loc == LocationId.GerejaKota) Add(ChurchLabel(), () => Worship(false));
 
+            // Toko Pakaian: semua model dibuka di submenu koleksi (menu lokasi maks. 8 baris).
+            var outfits = OutfitsSoldAt(loc);
+            if (outfits.Count > 0)
+            {
+                LocationId shop = loc;
+                Add("Lihat koleksi pakaian (" + outfits.Count + " model)", () => OpenOutfitShop(shop, 0));
+            }
+
             foreach (var item in PulangItems.SoldAt(loc))
             {
                 ItemDef it = item;
+                if (it.IsOutfit) continue;
                 // Barang misi hanya dijual saat dibutuhkan misi (dan belum dimiliki).
                 if (it.Quest && (!IsPending(StoryEvent.Buy, it.Id, out _) || D.inventory.Contains(it.Id))) continue;
                 // Kendaraan cukup dibeli sekali.
@@ -616,8 +628,7 @@ namespace PixelAdventure.LifeSim
                     Add("Kerja: " + j.Name + HoursLabel(j), () => StartShift(j, false));
                     Add("Berhenti: " + j.Name, () => Resign(j));
                 }
-                else if (D.state >= StoryState.Ch1PekerjaanPertama &&
-                         (j.Tier == JobTier.Sederhana || D.state > StoryState.Ch3KesempatanBaru))
+                else if (_story.Chapter >= Chapter.Ch1)   // bebas melamar sejak tiba di kota (syarat level/skill tetap berlaku)
                 {
                     Add("Lamar: " + j.Name, () => Apply(j));
                 }
@@ -651,7 +662,8 @@ namespace PixelAdventure.LifeSim
                 Say(PulangProfile.Token, "Masih terlalu sore untuk tidur.");
                 return;
             }
-            SleepUntilMorning("Selamat pagi", 100);
+            // Pilih slot simpanan dulu; permainan disimpan ke slot itu saat bangun.
+            ChooseSleepSlot(slot => SleepUntilMorning("Selamat pagi - tersimpan di slot " + (slot + 1), 100));
         }
 
         /// <summary>Bayar penginapan lalu tidur sampai pagi; bangun di depan penginapan.</summary>
@@ -669,9 +681,13 @@ namespace PixelAdventure.LifeSim
                 Say(" ", "Uangmu tidak cukup. Semalam di sini " + Rp(price) + ".");
                 return;
             }
-            D.money -= price;
-            GameAudio.Play("coin", 0.5f);
-            SleepUntilMorning("Bangun di " + PulangWorld.Get(inn).Name, 100, inn);
+            // Pilih slot dulu; biaya baru dibayar setelah slot dipilih (BATAL = tidak bayar).
+            ChooseSleepSlot(slot =>
+            {
+                D.money -= price;
+                GameAudio.Play("coin", 0.5f);
+                SleepUntilMorning("Bangun di " + PulangWorld.Get(inn).Name + " - tersimpan di slot " + (slot + 1), 100, inn);
+            });
         }
 
         bool HasEdible()
@@ -754,23 +770,7 @@ namespace PixelAdventure.LifeSim
             return "+" + gained + " ENERGI (" + D.energy + "/100)" + (gained < amount ? " PENUH" : "");
         }
 
-        void OpenSavingsMenu()
-        {
-            var labels = new List<string>();
-            var actions = new List<Action>();
-            foreach (int amount in new[] { 10000, 50000, 100000 })
-            {
-                if (D.money < amount) continue;
-                int a = amount;
-                labels.Add("SIMPAN " + Rp(a));
-                actions.Add(() => Deposit(a));
-            }
-            labels.Add("SIMPAN SEMUA (" + Rp(D.money) + ")");
-            actions.Add(() => Deposit(D.money));
-            labels.Add("BATAL");
-            actions.Add(null);
-            OpenMenu("MENABUNG", labels, actions);
-        }
+        // OpenSavingsMenu (layar ketik jumlah tabungan) ada di PulangGameSavings.cs.
 
         void Deposit(int amount)
         {
@@ -814,6 +814,13 @@ namespace PixelAdventure.LifeSim
             if (it.Energy > 0 && it.Gift == null)
             {
                 _hud.ShowToast(GainEnergy(it.Energy));
+            }
+            else if (it.IsOutfit)
+            {
+                // Pakaian baru langsung dipakai; yang lama tetap tersimpan di inventori.
+                D.inventory.Add(it.Id);
+                if (D.outfit != it.Id) ToggleOutfit(it);
+                _hud.ShowToast(("DAPAT " + it.Name + " - LANGSUNG DIPAKAI").ToUpperInvariant());
             }
             else
             {
@@ -1004,6 +1011,7 @@ namespace PixelAdventure.LifeSim
             D.minutes = (int)_clock;
             GameAudio.Play("coin", 0.7f);
             notes.Insert(0, new Line(" ", string.Format(_wgTheme.Result, _workHits, _wgRounds) + " Upah " + Rp(pay) + "."));
+            if (_wgShiftQuit) notes.Insert(0, new Line(" ", "Kamu berhenti kerja lebih awal."));
             Say(notes, () => _story.Tick());
         }
 
@@ -1201,12 +1209,12 @@ namespace PixelAdventure.LifeSim
                     _markers.Add(new MapMarker(pair.Value.Position, MarkerGirl));
 
             // Setiap tujuan misi yang sedang berjalan mendapat penanda + penunjuk arah.
+            // Tujuan di wilayah lain TIDAK lagi diarahkan ke terminal (penanda "TERMINAL" dihapus);
+            // arah ke wilayah lain bisa dilihat di layar PETA (F).
             _goals.Clear();
-            bool needTerminal = false;
             foreach (int i in PendingObjectiveIndices())
             {
                 var o = _story.Current.Objectives[i];
-                int before = _goals.Count;
                 switch (o.Event)
                 {
                     case StoryEvent.Arrive:
@@ -1230,9 +1238,6 @@ namespace PixelAdventure.LifeSim
                             int p = Array.FindIndex(Pickups, x => x.Id == o.Key);
                             AddGoal(go.transform.position, p >= 0 ? Pickups[p].Label.ToUpperInvariant() : "BARANG");
                         }
-                        break;
-                    case StoryEvent.Travel:
-                        needTerminal = true;
                         break;
                     case StoryEvent.Skill:
                     case StoryEvent.Save:
@@ -1260,34 +1265,24 @@ namespace PixelAdventure.LifeSim
                         break;
                     case StoryEvent.WorkShift:
                     {
-                        // Tempat kerja (mis. pekerjaan awal Quest 4); bila tak ada di wilayah ini -> terminal.
-                        bool anyHere = false, anyElse = false;
+                        // Tempat kerja (mis. pekerjaan awal Quest 4) di wilayah ini.
                         foreach (var place in WorkShiftPlaces(o))
                         {
                             if (!PlaceInWorkHours(place)) continue;   // di luar jam kerja: tanpa penanda
                             if (PulangWorld.Get(place).Region == here)
-                            {
                                 AddGoal(_world.Spot(place), WorkPlaceLabel(place));
-                                anyHere = true;
-                            }
-                            else anyElse = true;
                         }
-                        if (!anyHere && anyElse) needTerminal = true;
                         break;
                     }
                 }
-
-                // Tujuan ada di wilayah lain (tempat/NPC di kota lain): arahkan ke terminal.
-                if (_goals.Count == before && TryGetObjectiveRegion(o, out Region qr) && qr != here)
-                    needTerminal = true;
             }
-            if (needTerminal)
-                foreach (var loc in _world.LocationsIn(here))
-                    if (Array.IndexOf(TravelPoints, loc) >= 0) AddGoal(_world.Spot(loc), "TERMINAL");
 
             AddJobGoals(here);
+            AddSideGoals(here);
+            RefreshSideBadges();
 
             foreach (var g in _goals) _markers.Add(new MapMarker(g.Position, g.IsJob ? MarkerJob : MarkerGoal, g.IsJob, !g.IsJob));
+            SetMinimapExits(here);
             _hud.RefreshMinimap(here, _player.Feet, _player.Direction, _markers,
                 PulangWorld.RegionNames[here].ToUpperInvariant());
             _hud.SetQuestTargets(_goals);
@@ -1321,7 +1316,7 @@ namespace PixelAdventure.LifeSim
                 else otherRegion = true;
             }
 
-            if (string.IsNullOrEmpty(D.jobMain) && D.state >= StoryState.Ch1PekerjaanPertama)
+            if (string.IsNullOrEmpty(D.jobMain) && _story.Chapter >= Chapter.Ch1)
             {
                 // Kumpulkan lowongan per tempat agar satu tempat cukup satu penunjuk.
                 var openings = new Dictionary<LocationId, List<string>>();
@@ -1410,7 +1405,7 @@ namespace PixelAdventure.LifeSim
         bool CanApplyNow(JobDef j)
         {
             if (D.jobMain == j.Id || D.jobSide == j.Id) return false;
-            if (!(j.Tier == JobTier.Sederhana || D.state > StoryState.Ch3KesempatanBaru)) return false;
+            if (_story.Chapter < Chapter.Ch1) return false;
             if (!IsLocationOpen(j.Place)) return false;
             if (D.level < j.MinLevel) return false;
             if (j.NeedItem != null && !D.inventory.Contains(j.NeedItem)) return false;

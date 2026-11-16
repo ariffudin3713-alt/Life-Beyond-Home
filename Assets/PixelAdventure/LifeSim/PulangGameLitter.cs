@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PixelAdventure.LifeSim.Pulang;
 using UnityEngine;
 
 namespace PixelAdventure.LifeSim
@@ -42,6 +43,7 @@ namespace PixelAdventure.LifeSim
             int n = _litterCarried;
             _litterCarried = 0;
             D.reputation += n;
+            for (int i = 0; i < n; i++) QueueStoryEvent(StoryEvent.Litter, "*");   // misi sampingan "Alun-Alun Bersih"
             GainExp(n * 2);
             GameAudio.Play("quest_done", 0.4f);
             _hud.ShowToast("+" + n + " REPUTASI - TERIMA KASIH SUDAH MENJAGA KEBERSIHAN!");
