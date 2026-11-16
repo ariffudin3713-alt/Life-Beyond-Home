@@ -773,7 +773,7 @@ namespace PixelAdventure.LifeSim
             _world.SetRegion(region);
             ScatterNpcs(region);
             if (_story.Data != null) D.region = region;
-            if (!_world.CanStand(pos.x, pos.y)) pos = _world.ArrivalSpot(region);
+            if (!_world.CanStand(pos.x, pos.y)) pos = _world.NearestStandable(pos) ?? _world.ArrivalSpot(region);
             _player.Teleport(pos.x, pos.y);
             _cameraRig?.Snap();
             _world.UpdateSigns(pos);

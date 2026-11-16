@@ -90,7 +90,9 @@ namespace PixelAdventure.LifeSim
             // ---------------- Toko khusus (menggantikan beberapa "toko tutup" dekorasi)
             new Placement(LocationId.DealerKendaraan, Kind.Shop, 38f, 8f),     // Kota selatan
             new Placement(LocationId.TokoElektronik,  Kind.Shop, 72f, 8f),     // Kota selatan
-            new Placement(LocationId.TokoBuku,        Kind.Shop, 59f, 49f),    // Kota, dekat Alun-Alun
+            // Kota, di belakang Cafe Senja (atap kafe sampai y 47.9). Dasar y 50.5 memberi halaman
+            // depan 2.6 unit; dulu y 49 membuat titik pintu (y-1.1) jatuh di dalam atap kafe = tersangkut.
+            new Placement(LocationId.TokoBuku,        Kind.Shop, 59f, 50.5f),
             new Placement(LocationId.TokoPancing,     Kind.Shop, 56f, 16f),    // Pantai, utara jalan
 
             // ---------------- Tempat ibadah (menggantikan mushola & ruko dekorasi di Kota)
@@ -652,6 +654,29 @@ namespace PixelAdventure.LifeSim
         }
 
         void AddObstacle(float x, float y, float w, float h) => _buildObstacles.Add(new Rect(x, y, w, h));
+
+        /// <summary>
+        /// Titik berdiri terdekat dari <paramref name="p"/> (melingkar keluar, langkah 0.25 unit,
+        /// sampai 4 unit). Mengembalikan p bila sudah bebas, atau null bila tidak ada yang bebas.
+        /// Mencegah pemain muncul di dalam penghalang (mis. keluar pintu yang terlalu dekat bangunan lain).
+        /// </summary>
+        public Vector2? NearestStandable(Vector2 p)
+        {
+            if (CanStand(p.x, p.y)) return p;
+            const float step = 0.25f;
+            for (float r = step; r <= 4f; r += step)
+            {
+                int n = Mathf.Max(8, Mathf.CeilToInt(2f * Mathf.PI * r / step));
+                // Coba arah bawah (menjauh dari pintu) lebih dulu.
+                for (int i = 0; i < n; i++)
+                {
+                    float a = -Mathf.PI * 0.5f + (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * (2f * Mathf.PI / n);
+                    float x = p.x + Mathf.Cos(a) * r, y = p.y + Mathf.Sin(a) * r;
+                    if (CanStand(x, y)) return new Vector2(x, y);
+                }
+            }
+            return null;
+        }
 
         public bool CanStand(float x, float y)
         {

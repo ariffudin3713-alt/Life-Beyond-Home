@@ -38,7 +38,8 @@ namespace PixelAdventure.LifeSim
             {
                 LeaveInteriorSilently();
                 ScatterNpcs(_world.CurrentRegion);
-                Vector2 door = _world.Spot(loc);
+                // Titik depan pintu; bila ternyata terhalang, geser ke titik kosong terdekat agar tidak tersangkut.
+                Vector2 door = _world.NearestStandable(_world.Spot(loc)) ?? _world.ArrivalSpot(_world.CurrentRegion);
                 _player.Teleport(door.x, door.y);
                 _cameraRig?.Snap();
                 _world.UpdateSigns(door);
