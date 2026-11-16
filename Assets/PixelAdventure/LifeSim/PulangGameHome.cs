@@ -37,7 +37,9 @@ namespace PixelAdventure.LifeSim
             _homeIndex = PulangSaveData.AnySave() ? 0 : 1;
             RefreshHome();
             _inputLock = 0.3f;
-            GameAudio.PlayMusic(3);
+            GameAudio.PlayMusic(GameAudio.MusicTitle);
+            GameAudio.PlayAmbience(null);
+            GameAudio.Play("splash_title", 0.5f);
         }
 
         /// <summary>Dari layar jeda: simpan lalu kembali ke halaman utama.</summary>
@@ -65,6 +67,9 @@ namespace PixelAdventure.LifeSim
                     new HomeOption("LANJUTKAN", cont, last >= 0),
                     new HomeOption("GAME BARU", "MULAI CERITA DI SLOT PILIHAN"),
                     new HomeOption("SLOT SIMPANAN", "MUAT ATAU HAPUS SIMPANAN"),
+                    new HomeOption("PANDUAN", "CARA BERMAIN: KONTROL, MISI, KERJA, TEMPAT, TEMAN"),
+                    new HomeOption("PENGATURAN", "GRAFIK (FPS, RESOLUSI, ZOOM, UKURAN UI) & SUARA"),
+                    new HomeOption("KELUAR", "TUTUP PERMAINAN"),
                 };
                 _hud.ShowHome(options, _homeIndex);
                 return;
@@ -75,10 +80,10 @@ namespace PixelAdventure.LifeSim
 
             string title = _slotMode == SlotMode.NewGame ? "GAME BARU - PILIH SLOT" : "SLOT SIMPANAN";
             string hint = _confirmOverwrite || _confirmDelete
-                ? "E - YA    ESC - TIDAK"
+                ? "E / KLIK SLOT - YA    ESC / X - TIDAK"
                 : _slotMode == SlotMode.NewGame
-                    ? "W/S - PILIH    E - MULAI DI SLOT INI    ESC - KEMBALI"
-                    : "W/S - PILIH    E - MUAT    X / DEL - HAPUS    ESC - KEMBALI";
+                    ? "W/S - PILIH    E / KLIK - MULAI DI SLOT INI    ESC - KEMBALI"
+                    : "W/S - PILIH   E / KLIK - MUAT   X / DEL / KLIK KANAN - HAPUS   ESC - KEMBALI";
             _hud.ShowSlots(title, slots, _slotIndex, _slotMessage, hint);
         }
 
@@ -98,11 +103,12 @@ namespace PixelAdventure.LifeSim
             return new SlotView
             {
                 Empty = false,
-                Line1 = name + "  -  " + chapter,
-                Line2 = Trim(quest, 44),
+                // Baris 1: nama & bab (+ waktu simpan rata kanan), baris 2: misi, baris 3: keadaan.
+                Line1 = chapter.Length > 0 ? name + " - " + chapter : name,
+                Line2 = quest,
                 Line3 = "HARI " + d.day + "  " + hh.ToString("00") + ":" + mm.ToString("00") +
-                        "  " + Rp(d.money) + "  LV " + d.level +
-                        (string.IsNullOrEmpty(d.savedAt) ? "" : "   DISIMPAN " + d.savedAt),
+                        "   " + Rp(d.money) + "   LV " + d.level,
+                Saved = d.savedAt,
             };
         }
 
@@ -112,7 +118,6 @@ namespace PixelAdventure.LifeSim
             return (name + " - HARI " + d.day).ToUpperInvariant();
         }
 
-        static string Trim(string s, int max) => s.Length <= max ? s : s.Substring(0, max - 3) + "...";
 
         // ------------------------------------------------------------------ input
 
@@ -123,23 +128,46 @@ namespace PixelAdventure.LifeSim
             else UpdateSlotScreen();
         }
 
+        const int HomeOptionCount = 6;
+
         void UpdateHomeMenu()
         {
+            // Ketuk / klik tombol: pilih sekaligus jalankan.
+            int tapped = _hud.HomeTappedOption();
+            if (tapped >= 0)
+            {
+                _homeIndex = tapped;
+                RefreshHome();
+                ActivateHomeOption();
+                return;
+            }
+            // Kursor: arahkan ke tombol = pilih.
+            if (_hud.PointerHover(UiHit.HomeOption, out int hover) && hover != _homeIndex && hover < HomeOptionCount)
+            {
+                _homeIndex = hover;
+                GameAudio.Play("click", 0.25f);
+                RefreshHome();
+                return;
+            }
             if (LifeInput.UpPressed || LifeInput.DownPressed)
             {
                 int dir = LifeInput.UpPressed ? -1 : 1;
-                _homeIndex = (_homeIndex + dir + 3) % 3;
+                _homeIndex = (_homeIndex + dir + HomeOptionCount) % HomeOptionCount;
                 GameAudio.Play("click", 0.4f);
                 RefreshHome();
                 return;
             }
-            if (!LifeInput.InteractPressed) return;
+            if (LifeInput.InteractPressed) ActivateHomeOption();
+        }
 
+        void ActivateHomeOption()
+        {
             switch (_homeIndex)
             {
                 case 0: // LANJUTKAN
                     int last = PulangSaveData.LastSlot();
                     if (last < 0) { GameAudio.Play("error", 0.5f); return; }
+                    GameAudio.Play("confirm", 0.5f);
                     LoadSlot(last);
                     break;
                 case 1: // GAME BARU
@@ -148,8 +176,29 @@ namespace PixelAdventure.LifeSim
                 case 2: // SLOT SIMPANAN
                     OpenSlots(SlotMode.Load);
                     break;
+                case 3: // PANDUAN
+                    _hud.HideHome();
+                    _guideFromHome = true;
+                    OpenGuide(false);
+                    break;
+                case 4: // PENGATURAN (grafik & suara)
+                    GameAudio.Play("confirm", 0.5f);
+                    _hud.HideHome();
+                    OpenSettingsMenu(ShowTitle);
+                    break;
+                case 5: // KELUAR
+                    GameAudio.Play("tablet_off", 0.5f);
+#if UNITY_EDITOR
+                    UnityEditor.EditorApplication.isPlaying = false;
+#else
+                    Application.Quit();
+#endif
+                    break;
             }
         }
+
+        /// <summary>Panduan dibuka dari halaman utama: saat ditutup kembali ke halaman utama.</summary>
+        bool _guideFromHome;
 
         void OpenSlots(SlotMode mode)
         {
@@ -179,7 +228,9 @@ namespace PixelAdventure.LifeSim
             // ---- konfirmasi timpa / hapus
             if (_confirmOverwrite || _confirmDelete)
             {
-                if (LifeInput.InteractPressed)
+                // Kursor: klik lagi kartu slot yang sama = ya; tombol X = batal.
+                bool confirmClick = _hud.SlotTappedIndex() == _slotIndex;
+                if (LifeInput.InteractPressed || confirmClick)
                 {
                     if (_confirmOverwrite)
                     {
@@ -221,9 +272,33 @@ namespace PixelAdventure.LifeSim
                 return;
             }
 
+            // Kursor: arahkan ke kartu slot = pilih.
+            if (_hud.PointerHover(UiHit.SlotCard, out int hoverSlot) && hoverSlot != _slotIndex
+                && hoverSlot < PulangSaveData.SlotCount)
+            {
+                _slotIndex = hoverSlot;
+                _slotMessage = null;
+                GameAudio.Play("click", 0.25f);
+                RefreshHome();
+                return;
+            }
+
+            // Ketuk kartu slot = pilih + konfirmasi.
+            int tappedSlot = _hud.SlotTappedIndex();
+            bool tapConfirm = tappedSlot >= 0;
+            if (tapConfirm) { _slotIndex = tappedSlot; _slotMessage = null; }
+
             bool filled = PulangSaveData.HasSlot(_slotIndex);
 
-            if (_slotMode == SlotMode.Load && LifeInput.DeletePressed)
+            // Klik kanan kartu slot = hapus (sama dengan X / DEL).
+            int rightSlot = -1;
+            bool rightClickSlot = LifeInput.MouseRightClicked && _hud.PointerOver(UiHit.SlotCard, out rightSlot);
+            if (rightClickSlot)
+            {
+                _slotIndex = rightSlot;
+                filled = PulangSaveData.HasSlot(_slotIndex);
+            }
+            if (_slotMode == SlotMode.Load && (LifeInput.DeletePressed || rightClickSlot))
             {
                 if (!filled) { GameAudio.Play("error", 0.4f); return; }
                 _confirmDelete = true;
@@ -233,7 +308,7 @@ namespace PixelAdventure.LifeSim
                 return;
             }
 
-            if (!LifeInput.InteractPressed) return;
+            if (!LifeInput.InteractPressed && !tapConfirm) return;
 
             if (_slotMode == SlotMode.NewGame)
             {

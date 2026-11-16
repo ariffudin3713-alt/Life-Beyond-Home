@@ -29,9 +29,10 @@ namespace PixelAdventure.LifeSim
 
         class Vehicle
         {
-            public SpriteRenderer Sr;
+            public SpriteRenderer Sr, Head;
             public int Lane;
             public float X, Speed, MaxSpeed, HalfLen;
+            public float Blocked, HornCd;   // klakson saat dihalangi pemain
             public bool FacesRight;
         }
 
@@ -85,12 +86,31 @@ namespace PixelAdventure.LifeSim
                 HalfLen = sr.sprite != null ? sr.sprite.bounds.size.x * 0.5f : 2f,
                 FacesRight = facesRight,
             };
+            // Lampu depan (cahaya kuning pucat di depan kendaraan).
+            var headGo = new GameObject("LampuDepan");
+            headGo.transform.SetParent(go.transform, false);
+            v.Head = headGo.AddComponent<SpriteRenderer>();
+            v.Head.sprite = PixelArt.Get("lc_glow");
+            v.Head.sharedMaterial = PixelArt.SpriteMaterial;
+            v.Head.sortingOrder = LifeWorld.LightOrder + 1;
+            headGo.transform.localScale = new Vector3(2.4f, 0.9f, 1f);
+            v.Head.enabled = false;
             _vehicles.Add(v);
             PlaceVehicle(v);
         }
 
         /// <summary>Pejalan kaki bolak-balik antara a dan b (garis lurus di trotoar).</summary>
         public void AddWalker(string castId, Vector2 a, Vector2 b, float speed, float startT)
+        {
+            // Selalu acak: posisi awal, arah, dan kecepatan pejalan kaki berbeda setiap kali dimainkan.
+            startT = Random.value;
+            // Warga diacak dari semua karakter sisa spritesheet agar kota terasa ramai & beragam.
+            if (castId.StartsWith("warga")) castId = LifeArt.RandomWarga();
+            speed *= Random.Range(0.8f, 1.2f);
+            AddWalkerAt(castId, a, b, speed, startT);
+        }
+
+        void AddWalkerAt(string castId, Vector2 a, Vector2 b, float speed, float startT)
         {
             var go = new GameObject("Warga_" + castId);
             go.transform.SetParent(transform, false);
@@ -156,6 +176,7 @@ namespace PixelAdventure.LifeSim
             int dir = lane.Dir;
             float front = v.X + dir * v.HalfLen;
             float target = v.MaxSpeed;
+            bool playerBlocks = false;
 
             // 1) jaga jarak dengan kendaraan di depan pada lajur yang sama
             float gap = float.MaxValue;
@@ -174,7 +195,7 @@ namespace PixelAdventure.LifeSim
             if (player.y > lane.Y - 0.6f && player.y < lane.Y + 1.7f)
             {
                 float d = (player.x - front) * dir;
-                if (d > -v.HalfLen && d < 1.6f) target = 0f;
+                if (d > -v.HalfLen && d < 1.6f) { target = 0f; playerBlocks = true; }
                 else if (d >= 1.6f && d < 4.5f) target = Mathf.Min(target, v.MaxSpeed * (d - 1.6f) / 2.9f);
             }
 
@@ -187,6 +208,15 @@ namespace PixelAdventure.LifeSim
                 bool commit = _lightState == LightState.Yellow && toLine < 1.2f;
                 if (!commit && toLine > -0.1f && toLine < 6f)
                     target = Mathf.Min(target, toLine < 0.25f ? 0f : v.MaxSpeed * toLine / 6f);
+            }
+
+            // Diklakson bila pemain menghalangi lebih dari 1,2 detik (jeda 5 detik antar klakson, hanya bila terlihat).
+            v.HornCd = Mathf.Max(0f, v.HornCd - dt);
+            if (playerBlocks) v.Blocked += dt; else v.Blocked = 0f;
+            if (v.Blocked > 1.2f && v.HornCd <= 0f && v.Sr.enabled)
+            {
+                GameAudio.Play("horn", 0.35f, Random.Range(0.95f, 1.05f));
+                v.HornCd = 5f;
             }
 
             float accel = target < v.Speed ? 16f : 5f;
@@ -220,11 +250,21 @@ namespace PixelAdventure.LifeSim
             var lane = _lanes[v.Lane];
             // Simulasi tetap jalan (arus lalu lintas benar), tapi gambar di luar layar dimatikan.
             bool visible = LifeView.Sees(new Vector2(v.X, lane.Y), v.HalfLen + 1f, 3f);
-            if (v.Sr.enabled != visible) v.Sr.enabled = visible;
+            if (v.Sr.enabled != visible) { v.Sr.enabled = visible; if (!visible) v.Head.enabled = false; }
             if (!visible) return;
             v.Sr.transform.position = new Vector3(Mathf.Round(v.X * 16f) / 16f, lane.Y, 0f);
             v.Sr.flipX = v.FacesRight ? lane.Dir < 0 : lane.Dir > 0;
             v.Sr.sortingOrder = -Mathf.RoundToInt(lane.Y * PixelArt.PPU);
+
+            // Lampu depan menyala di malam hari (digambar di atas lapisan gelap).
+            float night = LifeWorld.NightLevel;
+            bool head = night > 0.05f;
+            if (v.Head.enabled != head) v.Head.enabled = head;
+            if (head)
+            {
+                v.Head.transform.localPosition = new Vector3(lane.Dir * (v.HalfLen + 0.9f), 0.45f, 0f);
+                v.Head.color = new Color(1f, 0.95f, 0.75f, 0.7f * night);
+            }
         }
 
         // ------------------------------------------------------------------ pejalan kaki

@@ -1,0 +1,679 @@
+{
+ "frameWidth": 16,
+ "frameHeight": 28,
+ "directions": [
+  "down",
+  "left",
+  "right",
+  "up"
+ ],
+ "columns": 4,
+ "characters": [
+  {
+   "row": 0,
+   "nama": "Zidan",
+   "peran": "Tokoh utama",
+   "kelompok": "Keluarga",
+   "gender": "laki-laki",
+   "file": "per_karakter/01_zidan.png",
+   "asal": "karakter lama #23"
+  },
+  {
+   "row": 1,
+   "nama": "Ratna",
+   "peran": "Ibu Zidan",
+   "kelompok": "Keluarga",
+   "gender": "perempuan",
+   "file": "per_karakter/02_ratna.png",
+   "asal": "baru"
+  },
+  {
+   "row": 2,
+   "nama": "Hendra",
+   "peran": "Paman Zidan",
+   "kelompok": "Keluarga",
+   "gender": "laki-laki",
+   "file": "per_karakter/03_hendra.png",
+   "asal": "baru"
+  },
+  {
+   "row": 3,
+   "nama": "Dimas",
+   "peran": "Sepupu Zidan",
+   "kelompok": "Keluarga",
+   "gender": "laki-laki",
+   "file": "per_karakter/04_dimas.png",
+   "asal": "karakter lama #16"
+  },
+  {
+   "row": 4,
+   "nama": "Pak Joko",
+   "peran": "Kakek Zidan",
+   "kelompok": "Keluarga",
+   "gender": "laki-laki",
+   "file": "per_karakter/05_pak_joko.png",
+   "asal": "baru"
+  },
+  {
+   "row": 5,
+   "nama": "Nabila",
+   "peran": "Teman perempuan",
+   "kelompok": "Perempuan",
+   "gender": "perempuan",
+   "file": "per_karakter/06_nabila.png",
+   "asal": "karakter lama #9"
+  },
+  {
+   "row": 6,
+   "nama": "Kirana",
+   "peran": "Teman perempuan",
+   "kelompok": "Perempuan",
+   "gender": "perempuan",
+   "file": "per_karakter/07_kirana.png",
+   "asal": "baru"
+  },
+  {
+   "row": 7,
+   "nama": "Anindya",
+   "peran": "Teman perempuan",
+   "kelompok": "Perempuan",
+   "gender": "perempuan",
+   "file": "per_karakter/08_anindya.png",
+   "asal": "baru"
+  },
+  {
+   "row": 8,
+   "nama": "Melati",
+   "peran": "Teman perempuan",
+   "kelompok": "Perempuan",
+   "gender": "perempuan",
+   "file": "per_karakter/09_melati.png",
+   "asal": "baru"
+  },
+  {
+   "row": 9,
+   "nama": "Citra",
+   "peran": "Teman perempuan",
+   "kelompok": "Perempuan",
+   "gender": "perempuan",
+   "file": "per_karakter/10_citra.png",
+   "asal": "karakter lama #58"
+  },
+  {
+   "row": 10,
+   "nama": "Pak Slamet",
+   "peran": "Petani",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "laki-laki",
+   "file": "per_karakter/11_pak_slamet.png",
+   "asal": "karakter lama #13"
+  },
+  {
+   "row": 11,
+   "nama": "Bu Sari",
+   "peran": "Warga desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "perempuan",
+   "file": "per_karakter/12_bu_sari.png",
+   "asal": "baru"
+  },
+  {
+   "row": 12,
+   "nama": "Pak Karto",
+   "peran": "Sesepuh desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "laki-laki",
+   "file": "per_karakter/13_pak_karto.png",
+   "asal": "baru"
+  },
+  {
+   "row": 13,
+   "nama": "Bu Marni",
+   "peran": "Warga desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "perempuan",
+   "file": "per_karakter/14_bu_marni.png",
+   "asal": "baru"
+  },
+  {
+   "row": 14,
+   "nama": "Rudi",
+   "peran": "Pemuda desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "laki-laki",
+   "file": "per_karakter/15_rudi.png",
+   "asal": "karakter lama #7"
+  },
+  {
+   "row": 15,
+   "nama": "Siska",
+   "peran": "Pemudi desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "perempuan",
+   "file": "per_karakter/16_siska.png",
+   "asal": "baru"
+  },
+  {
+   "row": 16,
+   "nama": "Budi",
+   "peran": "Anak desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "laki-laki",
+   "file": "per_karakter/17_budi.png",
+   "asal": "karakter lama #60"
+  },
+  {
+   "row": 17,
+   "nama": "Wawan",
+   "peran": "Pemuda desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "laki-laki",
+   "file": "per_karakter/18_wawan.png",
+   "asal": "karakter lama #1"
+  },
+  {
+   "row": 18,
+   "nama": "Pak Lurah Surya",
+   "peran": "Kepala desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "laki-laki",
+   "file": "per_karakter/19_pak_lurah_surya.png",
+   "asal": "karakter lama #30"
+  },
+  {
+   "row": 19,
+   "nama": "Bu Rukmini",
+   "peran": "Sesepuh desa",
+   "kelompok": "Desa Suka Makmur",
+   "gender": "perempuan",
+   "file": "per_karakter/20_bu_rukmini.png",
+   "asal": "baru"
+  },
+  {
+   "row": 20,
+   "nama": "Andi",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "laki-laki",
+   "file": "per_karakter/21_andi.png",
+   "asal": "baru"
+  },
+  {
+   "row": 21,
+   "nama": "Fajar",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "laki-laki",
+   "file": "per_karakter/22_fajar.png",
+   "asal": "baru"
+  },
+  {
+   "row": 22,
+   "nama": "Rizky",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "laki-laki",
+   "file": "per_karakter/23_rizky.png",
+   "asal": "karakter lama #20"
+  },
+  {
+   "row": 23,
+   "nama": "Bagas",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "laki-laki",
+   "file": "per_karakter/24_bagas.png",
+   "asal": "karakter lama #5"
+  },
+  {
+   "row": 24,
+   "nama": "Kevin",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "laki-laki",
+   "file": "per_karakter/25_kevin.png",
+   "asal": "baru"
+  },
+  {
+   "row": 25,
+   "nama": "Rina",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "perempuan",
+   "file": "per_karakter/26_rina.png",
+   "asal": "karakter lama #55"
+  },
+  {
+   "row": 26,
+   "nama": "Maya",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "perempuan",
+   "file": "per_karakter/27_maya.png",
+   "asal": "baru"
+  },
+  {
+   "row": 27,
+   "nama": "Tika",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "perempuan",
+   "file": "per_karakter/28_tika.png",
+   "asal": "baru"
+  },
+  {
+   "row": 28,
+   "nama": "Pak Darma",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "laki-laki",
+   "file": "per_karakter/29_pak_darma.png",
+   "asal": "karakter lama #59"
+  },
+  {
+   "row": 29,
+   "nama": "Bu Linda",
+   "peran": "Warga kota",
+   "kelompok": "Kota Jogokerto",
+   "gender": "perempuan",
+   "file": "per_karakter/30_bu_linda.png",
+   "asal": "baru"
+  },
+  {
+   "row": 30,
+   "nama": "Arif",
+   "peran": "Teman Zidan (siswa SMK)",
+   "kelompok": "Teman Zidan",
+   "gender": "laki-laki",
+   "file": "per_karakter/31_arif.png",
+   "asal": "karakter lama #8"
+  },
+  {
+   "row": 31,
+   "nama": "Reza",
+   "peran": "Teman Zidan",
+   "kelompok": "Teman Zidan",
+   "gender": "laki-laki",
+   "file": "per_karakter/32_reza.png",
+   "asal": "baru"
+  },
+  {
+   "row": 32,
+   "nama": "Ilham",
+   "peran": "Teman Zidan",
+   "kelompok": "Teman Zidan",
+   "gender": "laki-laki",
+   "file": "per_karakter/33_ilham.png",
+   "asal": "karakter lama #2"
+  },
+  {
+   "row": 33,
+   "nama": "Yoga",
+   "peran": "Teman Zidan",
+   "kelompok": "Teman Zidan",
+   "gender": "laki-laki",
+   "file": "per_karakter/34_yoga.png",
+   "asal": "baru"
+  },
+  {
+   "row": 34,
+   "nama": "Aldi",
+   "peran": "Teman Zidan",
+   "kelompok": "Teman Zidan",
+   "gender": "laki-laki",
+   "file": "per_karakter/35_aldi_teman_zidan.png",
+   "asal": "baru"
+  },
+  {
+   "row": 35,
+   "nama": "Farhan",
+   "peran": "Teman Zidan",
+   "kelompok": "Teman Zidan",
+   "gender": "laki-laki",
+   "file": "per_karakter/36_farhan.png",
+   "asal": "baru"
+  },
+  {
+   "row": 36,
+   "nama": "Deni",
+   "peran": "Teman Zidan",
+   "kelompok": "Teman Zidan",
+   "gender": "laki-laki",
+   "file": "per_karakter/37_deni.png",
+   "asal": "baru"
+  },
+  {
+   "row": 37,
+   "nama": "Raka",
+   "peran": "Teman Zidan",
+   "kelompok": "Teman Zidan",
+   "gender": "laki-laki",
+   "file": "per_karakter/38_raka.png",
+   "asal": "baru"
+  },
+  {
+   "row": 38,
+   "nama": "Pak Bima",
+   "peran": "Manajer",
+   "kelompok": "Dunia Kerja",
+   "gender": "laki-laki",
+   "file": "per_karakter/39_pak_bima.png",
+   "asal": "baru"
+  },
+  {
+   "row": 39,
+   "nama": "Bu Rani",
+   "peran": "Supervisor",
+   "kelompok": "Dunia Kerja",
+   "gender": "perempuan",
+   "file": "per_karakter/40_bu_rani.png",
+   "asal": "baru"
+  },
+  {
+   "row": 40,
+   "nama": "Fikri",
+   "peran": "Rekan kerja",
+   "kelompok": "Dunia Kerja",
+   "gender": "laki-laki",
+   "file": "per_karakter/41_fikri.png",
+   "asal": "baru"
+  },
+  {
+   "row": 41,
+   "nama": "Dito",
+   "peran": "Programmer",
+   "kelompok": "Dunia Kerja",
+   "gender": "laki-laki",
+   "file": "per_karakter/42_dito.png",
+   "asal": "baru"
+  },
+  {
+   "row": 42,
+   "nama": "Sinta",
+   "peran": "Admin",
+   "kelompok": "Dunia Kerja",
+   "gender": "perempuan",
+   "file": "per_karakter/43_sinta.png",
+   "asal": "karakter lama #14"
+  },
+  {
+   "row": 43,
+   "nama": "Rendi",
+   "peran": "Marketing",
+   "kelompok": "Dunia Kerja",
+   "gender": "laki-laki",
+   "file": "per_karakter/44_rendi.png",
+   "asal": "karakter lama #15"
+  },
+  {
+   "row": 44,
+   "nama": "Pak Anton",
+   "peran": "Direktur",
+   "kelompok": "Dunia Kerja",
+   "gender": "laki-laki",
+   "file": "per_karakter/45_pak_anton.png",
+   "asal": "karakter lama #53"
+  },
+  {
+   "row": 45,
+   "nama": "Yudha",
+   "peran": "Satpam",
+   "kelompok": "Dunia Kerja",
+   "gender": "laki-laki",
+   "file": "per_karakter/46_yudha.png",
+   "asal": "baru"
+  },
+  {
+   "row": 46,
+   "nama": "Bu Wati",
+   "peran": "Pemilik warung",
+   "kelompok": "Dunia Kerja",
+   "gender": "perempuan",
+   "file": "per_karakter/47_bu_wati.png",
+   "asal": "baru"
+  },
+  {
+   "row": 47,
+   "nama": "Pak Herman",
+   "peran": "Montir",
+   "kelompok": "Dunia Kerja",
+   "gender": "laki-laki",
+   "file": "per_karakter/48_pak_herman.png",
+   "asal": "karakter lama #67"
+  },
+  {
+   "row": 48,
+   "nama": "Pak Mulyono",
+   "peran": "Pemilik toko",
+   "kelompok": "Pedagang",
+   "gender": "laki-laki",
+   "file": "per_karakter/49_pak_mulyono.png",
+   "asal": "karakter lama #49"
+  },
+  {
+   "row": 49,
+   "nama": "Bu Tini",
+   "peran": "Penjual makanan",
+   "kelompok": "Pedagang",
+   "gender": "perempuan",
+   "file": "per_karakter/50_bu_tini.png",
+   "asal": "baru"
+  },
+  {
+   "row": 50,
+   "nama": "Pak Darto",
+   "peran": "Penjual sayur",
+   "kelompok": "Pedagang",
+   "gender": "laki-laki",
+   "file": "per_karakter/51_pak_darto.png",
+   "asal": "baru"
+  },
+  {
+   "row": 51,
+   "nama": "Riko",
+   "peran": "Penjual pakaian",
+   "kelompok": "Pedagang",
+   "gender": "laki-laki",
+   "file": "per_karakter/52_riko.png",
+   "asal": "baru"
+  },
+  {
+   "row": 52,
+   "nama": "Bu Ningsih",
+   "peran": "Pemilik restoran",
+   "kelompok": "Pedagang",
+   "gender": "perempuan",
+   "file": "per_karakter/53_bu_ningsih.png",
+   "asal": "karakter lama #50"
+  },
+  {
+   "row": 53,
+   "nama": "Pak Yanto",
+   "peran": "Pemilik bengkel",
+   "kelompok": "Pedagang",
+   "gender": "laki-laki",
+   "file": "per_karakter/54_pak_yanto.png",
+   "asal": "karakter lama #79"
+  },
+  {
+   "row": 54,
+   "nama": "Aldi",
+   "peran": "Penjual minuman",
+   "kelompok": "Pedagang",
+   "gender": "laki-laki",
+   "file": "per_karakter/55_aldi_penjual_minuman.png",
+   "asal": "baru"
+  },
+  {
+   "row": 55,
+   "nama": "Seno",
+   "peran": "Pemilik kafe",
+   "kelompok": "Pedagang",
+   "gender": "laki-laki",
+   "file": "per_karakter/56_seno.png",
+   "asal": "baru"
+  },
+  {
+   "row": 56,
+   "nama": "Pak Surono",
+   "peran": "NPC misi",
+   "kelompok": "Misi Sampingan",
+   "gender": "laki-laki",
+   "file": "per_karakter/57_pak_surono.png",
+   "asal": "karakter lama #22"
+  },
+  {
+   "row": 57,
+   "nama": "Bu Aminah",
+   "peran": "NPC misi",
+   "kelompok": "Misi Sampingan",
+   "gender": "perempuan",
+   "file": "per_karakter/58_bu_aminah.png",
+   "asal": "baru"
+  },
+  {
+   "row": 58,
+   "nama": "Joko",
+   "peran": "NPC misi",
+   "kelompok": "Misi Sampingan",
+   "gender": "laki-laki",
+   "file": "per_karakter/59_joko.png",
+   "asal": "karakter lama #57"
+  },
+  {
+   "row": 59,
+   "nama": "Rafi",
+   "peran": "NPC misi (anak)",
+   "kelompok": "Misi Sampingan",
+   "gender": "laki-laki",
+   "file": "per_karakter/60_rafi.png",
+   "asal": "karakter lama #69"
+  },
+  {
+   "row": 60,
+   "nama": "Nanda",
+   "peran": "NPC misi (anak)",
+   "kelompok": "Misi Sampingan",
+   "gender": "perempuan",
+   "file": "per_karakter/61_nanda.png",
+   "asal": "baru"
+  },
+  {
+   "row": 61,
+   "nama": "Dewi",
+   "peran": "NPC misi",
+   "kelompok": "Misi Sampingan",
+   "gender": "perempuan",
+   "file": "per_karakter/62_dewi.png",
+   "asal": "baru"
+  },
+  {
+   "row": 62,
+   "nama": "Pak Basuki",
+   "peran": "NPC misi",
+   "kelompok": "Misi Sampingan",
+   "gender": "laki-laki",
+   "file": "per_karakter/63_pak_basuki.png",
+   "asal": "baru"
+  },
+  {
+   "row": 63,
+   "nama": "Bu Fitri",
+   "peran": "NPC misi",
+   "kelompok": "Misi Sampingan",
+   "gender": "perempuan",
+   "file": "per_karakter/64_bu_fitri.png",
+   "asal": "karakter lama #25"
+  },
+  {
+   "row": 64,
+   "nama": "Hadi",
+   "peran": "NPC misi",
+   "kelompok": "Misi Sampingan",
+   "gender": "laki-laki",
+   "file": "per_karakter/65_hadi.png",
+   "asal": "baru"
+  },
+  {
+   "row": 65,
+   "nama": "Lestari",
+   "peran": "NPC misi",
+   "kelompok": "Misi Sampingan",
+   "gender": "perempuan",
+   "file": "per_karakter/66_lestari.png",
+   "asal": "baru"
+  },
+  {
+   "row": 66,
+   "nama": "Pak Wiryo",
+   "peran": "Tokoh masyarakat",
+   "kelompok": "Karakter Unik",
+   "gender": "laki-laki",
+   "file": "per_karakter/67_pak_wiryo.png",
+   "asal": "karakter lama #26"
+  },
+  {
+   "row": 67,
+   "nama": "Bu Ratih",
+   "peran": "Guru",
+   "kelompok": "Karakter Unik",
+   "gender": "perempuan",
+   "file": "per_karakter/68_bu_ratih.png",
+   "asal": "karakter lama #70"
+  },
+  {
+   "row": 68,
+   "nama": "Dokter Arman",
+   "peran": "Dokter",
+   "kelompok": "Karakter Unik",
+   "gender": "laki-laki",
+   "file": "per_karakter/69_dokter_arman.png",
+   "asal": "karakter lama #27"
+  },
+  {
+   "row": 69,
+   "nama": "Perawat Sella",
+   "peran": "Perawat",
+   "kelompok": "Karakter Unik",
+   "gender": "perempuan",
+   "file": "per_karakter/70_perawat_sella.png",
+   "asal": "baru"
+  },
+  {
+   "row": 70,
+   "nama": "Pak Polisi Aditya",
+   "peran": "Polisi",
+   "kelompok": "Karakter Unik",
+   "gender": "laki-laki",
+   "file": "per_karakter/71_pak_polisi_aditya.png",
+   "asal": "baru"
+  },
+  {
+   "row": 71,
+   "nama": "Bayu",
+   "peran": "Fotografer",
+   "kelompok": "Karakter Unik",
+   "gender": "laki-laki",
+   "file": "per_karakter/72_bayu.png",
+   "asal": "baru"
+  },
+  {
+   "row": 72,
+   "nama": "Niko",
+   "peran": "Kurir",
+   "kelompok": "Karakter Unik",
+   "gender": "laki-laki",
+   "file": "per_karakter/73_niko.png",
+   "asal": "karakter lama #17"
+  },
+  {
+   "row": 73,
+   "nama": "Pak Darwis",
+   "peran": "Pemilik penginapan",
+   "kelompok": "Karakter Unik",
+   "gender": "laki-laki",
+   "file": "per_karakter/74_pak_darwis.png",
+   "asal": "baru"
+  }
+ ]
+}

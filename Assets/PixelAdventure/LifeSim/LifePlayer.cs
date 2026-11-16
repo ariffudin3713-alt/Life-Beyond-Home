@@ -31,13 +31,26 @@ namespace PixelAdventure.LifeSim
             if (_body != null) _body.color = color;
         }
 
-        /// <summary>Displays the player's saved personal vehicle beneath the avatar.</summary>
-        public void SetVehicleVisual(int vehicle)
+        string _vehicle;   // id kendaraan yang dinaiki (null = jalan kaki)
+
+        /// <summary>Sedang menaiki kendaraan pribadi.</summary>
+        public bool Riding => !string.IsNullOrEmpty(_vehicle);
+
+        /// <summary>
+        /// Tampilkan kendaraan pribadi yang dinaiki ("sepeda", "skuter", "motor", "mobil"),
+        /// atau null/"" untuk berjalan kaki. Sepeda/motor digambar di atas kaki pemain;
+        /// mobil menggantikan sosok pemain (sopir terlihat di balik kaca).
+        /// </summary>
+        public void SetVehicleVisual(string vehicle)
         {
             if (_body == null) return;
-            if (vehicle <= 0)
+            _vehicle = string.IsNullOrEmpty(vehicle) ? null : vehicle;
+            if (_vehicle == null)
             {
                 if (_vehicleRenderer != null) _vehicleRenderer.gameObject.SetActive(false);
+                _body.enabled = true;
+                _shadow.transform.localScale = Vector3.one;
+                ApplySprite();
                 return;
             }
 
@@ -45,16 +58,13 @@ namespace PixelAdventure.LifeSim
             {
                 var go = new GameObject("PersonalVehicle");
                 go.transform.SetParent(transform, false);
-                go.transform.localPosition = new Vector3(0f, -0.08f, 0f);
-                go.transform.localScale = Vector3.one * 0.42f;
                 _vehicleRenderer = go.AddComponent<SpriteRenderer>();
                 _vehicleRenderer.sharedMaterial = PixelArt.SpriteMaterial;
             }
-
-            string sprite = vehicle == 1 ? "lc_vehicle_motorcycle"
-                : vehicle == 2 ? "lc_vehicle_angkot" : "lc_vehicle_car";
-            _vehicleRenderer.sprite = PixelArt.Get(sprite);
             _vehicleRenderer.gameObject.SetActive(true);
+            bool car = _vehicle == "mobil";
+            _body.enabled = !car;
+            _shadow.transform.localScale = car ? new Vector3(2.2f, 1.6f, 1f) : new Vector3(1.4f, 1f, 1f);
             ApplySprite();
         }
 
@@ -195,7 +205,11 @@ namespace PixelAdventure.LifeSim
             {
                 _anim += dt * (IsRunning ? 14f : 9f);   // langkah lebih cepat saat berlari
                 int step = (int)_anim % 4;
+                int prevFrame = _frame;
                 _frame = step == 0 ? 0 : step == 1 ? 1 : step == 2 ? 0 : 2;
+                // Suara langkah setiap kaki menapak (frame 1 & 2), nada sedikit acak agar alami.
+                if (_frame != prevFrame && _frame != 0 && !Riding)
+                    LifeStepFx.Step(_world, Feet, IsRunning, _dir);   // suara sesuai permukaan + debu
             }
             else
             {
@@ -208,15 +222,21 @@ namespace PixelAdventure.LifeSim
 
         void ApplySprite()
         {
-            _body.sprite = PixelArt.Get("lc_player_" + DirNames[_dir] + "_" + _frame);
+            // Di atas kendaraan kaki tidak melangkah: pakai pose diam.
+            _body.sprite = PixelArt.Get("lc_player_" + DirNames[_dir] + "_" + (Riding ? 0 : _frame));
             int order = -Mathf.RoundToInt(transform.position.y * PixelArt.PPU);
             _body.sortingOrder = order;
             _shadow.sortingOrder = order - 1;
             _shadow.transform.localPosition = new Vector3(0f, 0.06f, 0f);
-            if (_vehicleRenderer != null)
+            if (_vehicleRenderer != null && Riding)
             {
-                _vehicleRenderer.sortingOrder = order - 2;
+                string view = _dir == 0 ? "front" : _dir == 1 ? "back" : "side";
+                _vehicleRenderer.sprite = PixelArt.Get("lc_ride_" + _vehicle + "_" + view);
                 _vehicleRenderer.flipX = _dir == 2;
+                // Kendaraan menutupi kaki pemain (duduk di atasnya); goyang halus saat melaju.
+                _vehicleRenderer.sortingOrder = order + 1;
+                float bob = _anim > 0f && ((int)(_anim * 1.5f) % 2 == 0) ? 1f / PixelArt.PPU : 0f;
+                _vehicleRenderer.transform.localPosition = new Vector3(0f, bob, 0f);
             }
         }
     }

@@ -12,6 +12,7 @@ namespace PixelAdventure.LifeSim
         readonly List<string> _menuOptionList = new List<string>();
         int _menuCount;
         int _menuSelected;
+        int _menuFitChars;   // 0 = muat semua; >0 = batas huruf per pilihan di layar sempit
 
         // ---------------------------------------------------------------- title fields
 
@@ -34,13 +35,6 @@ namespace PixelAdventure.LifeSim
 
         SpriteRenderer _endPanel, _endTitle, _endSub, _endLine1, _endLine2, _endLine3, _endPrompt;
 
-        // ---------------------------------------------------------------- journal fields
-
-        Transform _journalGroup;
-        SpriteRenderer _journalPanel, _journalHeader, _journalChapter, _journalTitle;
-        SpriteRenderer _journalObjectiveA, _journalObjectiveB, _journalHint;
-        readonly SpriteRenderer[] _journalDetails = new SpriteRenderer[18];
-
         // ---------------------------------------------------------------- menu
 
         /// <summary>Simbol bintang di awal label menandai pilihan yang melanjutkan misi.</summary>
@@ -55,7 +49,7 @@ namespace PixelAdventure.LifeSim
             for (int i = 0; i < _menuOptions.Length; i++)
                 _menuOptions[i] = Text(_menuGroup, "Option" + i, " ", 1, Ink,
                     new Vector2(0f, 0.5f), 4012);
-            _menuHint = Text(_menuGroup, "Hint", "E - OK   ESC - BATAL", 1, Soft,
+            _menuHint = Text(_menuGroup, "Hint", "E / KLIK - OK   ESC - BATAL", 1, Soft,
                 new Vector2(0.5f, 0.5f), 4012);
             _menuGroup.gameObject.SetActive(false);
         }
@@ -87,6 +81,8 @@ namespace PixelAdventure.LifeSim
                 _menuOptions[i].gameObject.SetActive(show);
                 if (!show) continue;
                 string label = (i == _menuSelected ? "> " : "  ") + _menuOptionList[i];
+                if (_menuFitChars > 3 && label.Length > _menuFitChars)   // layar sempit: potong rapi, jangan keluar panel
+                    label = label.Substring(0, _menuFitChars - 2).TrimEnd() + "..";
                 bool quest = _menuOptionList[i].Length > 0 && _menuOptionList[i][0] == QuestMark;
                 Color color = i == _menuSelected ? Gold : (quest ? QuestColor : Ink);
                 SetText(_menuOptions[i], label, color, 1, new Vector2(0f, 0.5f));
@@ -104,21 +100,30 @@ namespace PixelAdventure.LifeSim
         {
             if (_menuGroup == null || !_menuGroup.gameObject.activeSelf) return;
             // Panel pilihan berada di tengah layar; lebarnya mengikuti teks terpanjang.
+            // Lebar diukur dari teks penuh (bukan yang sudah dipotong) agar panel tidak "berdenyut".
             float widest = _menuTitle.sprite != null ? _menuTitle.sprite.bounds.size.x : 0f;
             for (int i = 0; i < _menuCount; i++)
-                if (_menuOptions[i].sprite != null)
-                    widest = Mathf.Max(widest, _menuOptions[i].sprite.bounds.size.x);
-            float w = Mathf.Min(Mathf.Max(10.8f, widest + 1.3f), halfW * 2f - 1f);
+                widest = Mathf.Max(widest, (_menuOptionList[i].Length + 2) * UiCharW);
+            float maxW = halfW * 2f - 1f;
+            float w = Mathf.Min(Mathf.Max(10.8f, widest + 1.3f), maxW);
+            int fit = widest + 1.3f > maxW ? CharsFor(w - 1.1f) : 0;
+            if (fit != _menuFitChars) { _menuFitChars = fit; ApplyMenu(); }
             float h = 1.25f + _menuCount * 0.72f + 0.62f;
             float cx = 0f;
             float cy = 0f;
             SetRect(_menuPanel, cx, cy, w, h);
+            CloseAt(cx + w * 0.5f, cy + h * 0.5f, 3);
             float lx = cx - w * 0.5f + 0.55f;
             _menuTitle.transform.localPosition = new Vector3(lx, cy + h * 0.5f - 0.5f, 0f);
             for (int i = 0; i < _menuOptions.Length; i++)
-                _menuOptions[i].transform.localPosition =
-                    new Vector3(lx, cy + h * 0.5f - 1.18f - i * 0.72f, 0f);
+            {
+                float oy = cy + h * 0.5f - 1.18f - i * 0.72f;
+                _menuOptions[i].transform.localPosition = new Vector3(lx, oy, 0f);
+                if (i < _menuCount) Hit(UiHit.Menu, i, RectAt(cx, oy, w - 0.6f, 0.68f), 3);
+            }
             _menuHint.transform.localPosition = new Vector3(cx, cy - h * 0.5f + 0.36f, 0f);
+            SetHint(_menuHint, "E / KLIK - OK   ESC - BATAL", Soft);
+            FitHint(_menuHint, w - 0.8f);
         }
 
         // ---------------------------------------------------------------- title
@@ -130,8 +135,8 @@ namespace PixelAdventure.LifeSim
             _titlePanel.color = new Color(1f, 1f, 1f, 0.97f);
             SetRect(_titlePanel, 0f, -0.1f, 20f, 10.6f);
 
-            _titleName = Text(_titleGroup, "Name", "PULANG", 4, Ink, new Vector2(0.5f, 0.5f), 4005);
-            _titleSub = Text(_titleGroup, "Sub", "LIFE BEYOND HOME", 1, Pink, new Vector2(0.5f, 0.5f), 4005);
+            _titleName = Text(_titleGroup, "Name", "LIFE BEYOND HOME", 3, Ink, new Vector2(0.5f, 0.5f), 4005);
+            _titleSub = Text(_titleGroup, "Sub", "SEBUAH KISAH TENTANG PULANG", 1, Pink, new Vector2(0.5f, 0.5f), 4005);
             _titleInfo = Text(_titleGroup, "Info", " ", 1, Soft, new Vector2(0.5f, 0.5f), 4005);
             _titlePrompt = Text(_titleGroup, "Prompt", "ENTER - MULAI", 2, Gold, new Vector2(0.5f, 0.5f), 4006);
             _titleHint1 = Text(_titleGroup, "Hint1", "WASD - JALAN   SHIFT - LARI", 1, Soft, new Vector2(0.5f, 0.5f), 4005);
@@ -181,8 +186,8 @@ namespace PixelAdventure.LifeSim
             _pausePanel = Panel(_pauseGroup, "Panel", "lc_panel", 4010);
             SetRect(_pausePanel, 0f, 0f, 15f, 7.2f);
             _pauseTitle = Text(_pauseGroup, "Title", "JEDA", 3, Ink, new Vector2(0.5f, 0.5f), 4012);
-            _pausePrompt = Text(_pauseGroup, "Prompt", "P / ESC - LANJUT", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
-            _pauseHint = Text(_pauseGroup, "Hint", "H - SIMPAN & KE MENU UTAMA", 1, Soft, new Vector2(0.5f, 0.5f), 4012);
+            _pausePrompt = Text(_pauseGroup, "Prompt", "LANJUT BERMAIN  (P / ESC)", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
+            _pauseHint = Text(_pauseGroup, "Hint", "SIMPAN & KE MENU UTAMA  (H)", 1, Soft, new Vector2(0.5f, 0.5f), 4012);
             _pauseMute = Text(_pauseGroup, "Mute", "M - SUARA", 1, Soft, new Vector2(0.5f, 0.5f), 4012);
 
             _pauseTitle.transform.localPosition = new Vector3(0f, 2.2f, 0f);
@@ -194,7 +199,7 @@ namespace PixelAdventure.LifeSim
 
         public void ShowPause(bool muted)
         {
-            SetText(_pauseMute, "M - SUARA: " + (muted ? "MATI" : "NYALA"), Soft, 1,
+            SetText(_pauseMute, "SUARA: " + (muted ? "MATI" : "NYALA") + "  (M)", Soft, 1,
                 new Vector2(0.5f, 0.5f));
             SetDim(0.62f);
             _pauseGroup.gameObject.SetActive(true);
@@ -276,10 +281,12 @@ namespace PixelAdventure.LifeSim
         public void HideWork()
         {
             if (_workGroup != null) _workGroup.gameObject.SetActive(false);
+            HideWorkGame();
         }
 
         void LayoutWork(float halfW, float halfH)
         {
+            LayoutWorkGame(halfW, halfH);
             if (_workGroup == null || !_workGroup.gameObject.activeSelf) return;
             float barLeft = -3.6f;
             float barW = 7.2f;
@@ -302,7 +309,7 @@ namespace PixelAdventure.LifeSim
             _endLine1 = Text(_endGroup, "Line1", " ", 1, Ink, new Vector2(0.5f, 0.5f), 4012);
             _endLine2 = Text(_endGroup, "Line2", " ", 2, Pink, new Vector2(0.5f, 0.5f), 4012);
             _endLine3 = Text(_endGroup, "Line3", "TERIMA KASIH SUDAH BERMAIN", 1, Soft, new Vector2(0.5f, 0.5f), 4012);
-            _endPrompt = Text(_endGroup, "Prompt", "ENTER - KEMBALI KE JUDUL", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
+            _endPrompt = Text(_endGroup, "Prompt", "ENTER / KLIK - KEMBALI KE JUDUL", 1, Gold, new Vector2(0.5f, 0.5f), 4013);
 
             _endTitle.transform.localPosition = new Vector3(0f, 3.0f, 0f);
             _endSub.transform.localPosition = new Vector3(0f, 1.7f, 0f);
@@ -354,94 +361,12 @@ namespace PixelAdventure.LifeSim
         /// <summary>Kembalikan teks kartu judul setelah layar nama.</summary>
         public void ResetTitleTexts()
         {
-            SetText(_titleName, "PULANG", Ink, 4, new Vector2(0.5f, 0.5f));
-            SetText(_titleSub, "LIFE BEYOND HOME", Pink, 1, new Vector2(0.5f, 0.5f));
+            SetText(_titleName, "LIFE BEYOND HOME", Ink, 3, new Vector2(0.5f, 0.5f));
+            SetText(_titleSub, "SEBUAH KISAH TENTANG PULANG", Pink, 1, new Vector2(0.5f, 0.5f));
             SetText(_titleHint1, "WASD - JALAN   SHIFT - LARI", Soft, 1, new Vector2(0.5f, 0.5f));
             SetText(_titleHint2, "E - BICARA  J - JURNAL  T - TUGAS", Soft, 1, new Vector2(0.5f, 0.5f));
             SetText(_titleHint3, "TAB - TABLET  I - INVENTORI  P - JEDA", Soft, 1, new Vector2(0.5f, 0.5f));
             SetText(_titleHint4, "N - MULAI BARU", Soft, 1, new Vector2(0.5f, 0.5f));
-        }
-
-        // ---------------------------------------------------------------- journal
-
-        void BuildJournal()
-        {
-            _journalGroup = Group("Journal");
-            _journalPanel = Panel(_journalGroup, "Panel", "lc_panel_gold", 4010);
-            _journalHeader = Text(_journalGroup, "Header", "JURNAL - CATATAN PERJALANAN", 1,
-                Soft, new Vector2(0.5f, 0.5f), 4012);
-            _journalChapter = Text(_journalGroup, "Chapter", "BAB 1", 1, Pink,
-                new Vector2(0f, 0.5f), 4012);
-            _journalTitle = Text(_journalGroup, "Title", " ", 2, Gold,
-                new Vector2(0f, 0.5f), 4012);
-            _journalObjectiveA = Text(_journalGroup, "ObjectiveA", " ", 1, Ink,
-                new Vector2(0f, 0.5f), 4012);
-            _journalObjectiveB = Text(_journalGroup, "ObjectiveB", " ", 1, Ink,
-                new Vector2(0f, 0.5f), 4012);
-            for (int i = 0; i < _journalDetails.Length; i++)
-                _journalDetails[i] = Text(_journalGroup, "Detail" + i, " ", 1, Ink,
-                    new Vector2(0f, 0.5f), 4012);
-            _journalHint = Text(_journalGroup, "Hint", "J / ESC - TUTUP", 1, Gold,
-                new Vector2(0.5f, 0.5f), 4012);
-            _journalGroup.gameObject.SetActive(false);
-        }
-
-        public void ShowJournal(string chapter, string title, string hint,
-            List<string> details)
-        {
-            SetText(_journalHeader, "JURNAL - CATATAN PERJALANAN", Soft, 1,
-                new Vector2(0.5f, 0.5f));
-            SetText(_journalChapter, chapter, Pink, 1, new Vector2(0f, 0.5f));
-            SetText(_journalTitle, title, Gold, 2, new Vector2(0f, 0.5f));
-
-            string[] wrapped = Wrap("TUGAS: " + hint, 52);
-            SetText(_journalObjectiveA, wrapped.Length > 0 ? wrapped[0] : " ", Ink, 1,
-                new Vector2(0f, 0.5f));
-            SetText(_journalObjectiveB, wrapped.Length > 1 ? wrapped[1] : " ", Soft, 1,
-                new Vector2(0f, 0.5f));
-
-            int count = details == null ? 0 : Mathf.Min(details.Count, _journalDetails.Length);
-            for (int i = 0; i < _journalDetails.Length; i++)
-            {
-                string line = i < count ? details[i] : " ";
-                SetText(_journalDetails[i], string.IsNullOrEmpty(line) ? " " : line,
-                    i < 2 ? Ink : Soft, 1, new Vector2(0f, 0.5f));
-            }
-
-            SetDim(0.72f);
-            _journalGroup.gameObject.SetActive(true);
-            HidePrompt();
-        }
-
-        public void HideJournal()
-        {
-            if (_journalGroup != null) _journalGroup.gameObject.SetActive(false);
-            SetDim(0f);
-        }
-
-        void LayoutJournal(float halfW, float halfH)
-        {
-            if (_journalGroup == null || !_journalGroup.gameObject.activeSelf) return;
-
-            float w = Mathf.Min(halfW * 2f - 1.2f, 23f);
-            float h = Mathf.Min(halfH * 2f - 1.1f, 13.4f);
-            float cx = 0f;
-            float cy = 0f;
-            SetRect(_journalPanel, cx, cy, w, h);
-
-            float lx = cx - w * 0.5f + 0.75f;
-            float top = cy + h * 0.5f;
-            _journalHeader.transform.localPosition = new Vector3(cx, top - 0.52f, 0f);
-            _journalChapter.transform.localPosition = new Vector3(lx, top - 1.18f, 0f);
-            _journalTitle.transform.localPosition = new Vector3(lx, top - 1.98f, 0f);
-            _journalObjectiveA.transform.localPosition = new Vector3(lx, top - 3.02f, 0f);
-            _journalObjectiveB.transform.localPosition = new Vector3(lx, top - 3.60f, 0f);
-
-            for (int i = 0; i < _journalDetails.Length; i++)
-                _journalDetails[i].transform.localPosition =
-                    new Vector3(lx, top - 4.05f - i * 0.44f, 0f);
-
-            _journalHint.transform.localPosition = new Vector3(cx, cy - h * 0.5f + 0.42f, 0f);
         }
 
         /// <summary>

@@ -18,7 +18,7 @@ namespace PixelAdventure.LifeSim.Pulang
     }
 
     /// <summary>Kategori barang di inventori.</summary>
-    public enum ItemKind { Makanan, Hadiah, Perlengkapan, Misi }
+    public enum ItemKind { Makanan, Hadiah, Perlengkapan, Misi, Kendaraan, Pakaian }
 
     public class ItemDef
     {
@@ -29,9 +29,20 @@ namespace PixelAdventure.LifeSim.Pulang
         public LocationId[] SoldAt = new LocationId[0];
         public string Desc = "";    // keterangan di inventori
         public bool Quest;          // barang misi: tidak dijual, tidak bisa dimakan/dibuang
+        public float Speed;         // kendaraan pribadi: pengali kecepatan (> 0 = kendaraan)
+        public bool Engine;         // kendaraan bermesin (bisa dipakai antarwilayah, perlu bensin)
+        public int TravelMinutes;   // lama berkendara sendiri ke wilayah lain
+        public int Fuel;            // biaya bensin sekali jalan antarwilayah
+        public int Outfit = -1;     // pakaian: baris badan di spritesheet karakter (-1 = bukan pakaian)
+
+        public bool IsOutfit => Outfit >= 0;
+
+        public bool IsVehicle => Speed > 0f;
 
         public ItemKind Kind =>
             Quest ? ItemKind.Misi
+            : IsVehicle ? ItemKind.Kendaraan
+            : IsOutfit ? ItemKind.Pakaian
             : Energy > 0 ? ItemKind.Makanan
             : Gift != null ? ItemKind.Hadiah
             : ItemKind.Perlengkapan;
@@ -132,31 +143,109 @@ namespace PixelAdventure.LifeSim.Pulang
                 SoldAt = new[] { LocationId.WarungBuSari, LocationId.Minimarket, LocationId.TokoKelontong },
                 Desc = "Roti manis untuk bekal. Bisa dimakan kapan saja atau diberikan sebagai hadiah." },
             new ItemDef { Id = "es_teh", Name = "Es Teh", Price = 5000, Energy = 8,
-                SoldAt = new[] { LocationId.WarungSenja, LocationId.WarungBuSari, LocationId.WarungMakanBuSiti },
+                SoldAt = new[] { LocationId.WarungSenja, LocationId.WarungBuSari, LocationId.WarungMakanBuSiti,
+                                 LocationId.Angkringan, LocationId.WarungPecelLele, LocationId.PecelLeleKota, LocationId.WarkopDesa },
                 Desc = "Segelas es teh manis yang menyegarkan." },
             new ItemDef { Id = "nasi_goreng", Name = "Nasi Goreng", Price = 15000, Energy = 30,
                 SoldAt = new[] { LocationId.WarungMakanBuSiti, LocationId.WarungBuSari },
                 Desc = "Sepiring nasi goreng hangat. Mengenyangkan." },
             new ItemDef { Id = "kopi", Name = "Kopi", Price = 8000, Energy = 10, Gift = Pulang.Gift.Kopi,
-                SoldAt = new[] { LocationId.CafeSenja, LocationId.Minimarket },
+                SoldAt = new[] { LocationId.CafeSenja, LocationId.Minimarket, LocationId.Angkringan, LocationId.WarkopDesa },
                 Desc = "Kopi hangat penambah semangat. Bisa juga jadi hadiah." },
+
+            // ---- Makanan khas Indonesia (gerobak & warung tenda)
+            new ItemDef { Id = "bakso", Name = "Bakso", Price = 12000, Energy = 25,
+                SoldAt = new[] { LocationId.GerobakBakso },
+                Desc = "Semangkuk bakso urat hangat dengan mi dan kuah kaldu." },
+            new ItemDef { Id = "nasi_kucing", Name = "Nasi Kucing", Price = 3000, Energy = 8,
+                SoldAt = new[] { LocationId.Angkringan },
+                Desc = "Nasi sekepal dengan sambal teri. Murah meriah khas angkringan." },
+            new ItemDef { Id = "sate_usus", Name = "Sate Usus", Price = 2000, Energy = 5,
+                SoldAt = new[] { LocationId.Angkringan },
+                Desc = "Sate usus bakar dari angkringan. Teman makan nasi kucing." },
+            new ItemDef { Id = "pecel_lele", Name = "Pecel Lele", Price = 15000, Energy = 32,
+                SoldAt = new[] { LocationId.WarungPecelLele, LocationId.PecelLeleKota },
+                Desc = "Lele goreng renyah, sambal terasi, dan lalapan." },
+            new ItemDef { Id = "ayam_penyet", Name = "Ayam Penyet", Price = 18000, Energy = 35,
+                SoldAt = new[] { LocationId.WarungPecelLele, LocationId.PecelLeleKota },
+                Desc = "Ayam goreng yang dipenyet di atas sambal bawang. Pedas mantap!" },
+            new ItemDef { Id = "mi_rebus", Name = "Mi Rebus Telur", Price = 10000, Energy = 22,
+                SoldAt = new[] { LocationId.WarkopDesa },
+                Desc = "Mi instan rebus pakai telur dan cabai rawit. Menu andalan warkop." },
+            new ItemDef { Id = "gorengan", Name = "Gorengan", Price = 2000, Energy = 5,
+                SoldAt = new[] { LocationId.WarkopDesa, LocationId.Angkringan },
+                Desc = "Bakwan, tahu isi, dan pisang goreng hangat. Cocok ditemani cabai rawit." },
+            new ItemDef { Id = "es_kelapa", Name = "Es Kelapa Muda", Price = 8000, Energy = 12,
+                SoldAt = new[] { LocationId.KiosEsKelapa },
+                Desc = "Air kelapa muda dingin langsung dari batoknya." },
+
             new ItemDef { Id = "cokelat", Name = "Cokelat", Price = 10000, Gift = Pulang.Gift.Cokelat,
                 SoldAt = new[] { LocationId.Minimarket, LocationId.TokoSerbaAda, LocationId.TokoKelontong },
                 Desc = "Sebatang cokelat. Hadiah manis untuk orang terdekat." },
             new ItemDef { Id = "buku", Name = "Buku", Price = 25000, Gift = Pulang.Gift.Buku,
-                SoldAt = new[] { LocationId.TokoSerbaAda, LocationId.TokoAnugerah },
-                Desc = "Buku cerita yang bagus. Cocok untuk yang suka membaca." },
+                SoldAt = new[] { LocationId.TokoBuku },
+                Desc = "Buku cerita dari Toko Buku Pelita. Cocok untuk yang suka membaca." },
             new ItemDef { Id = "bunga", Name = "Bunga", Price = 15000, Gift = Pulang.Gift.Bunga,
                 SoldAt = new[] { LocationId.TokoBungaMelati },
                 Desc = "Seikat bunga segar dari Toko Bunga Melati." },
-            // Perlengkapan kerja (harga belum ada di dokumen)
-            new ItemDef { Id = "sepeda", Name = "Sepeda", Price = 300000, SoldAt = new[] { LocationId.TokoSerbaAda },
-                Desc = "Syarat pekerjaan Kurir Makanan di Minimarket." },
-            new ItemDef { Id = "kamera", Name = "Kamera", Price = 500000, SoldAt = new[] { LocationId.TokoAnugerah },
+
+            // ---- Kendaraan (Dealer Kendaraan Maju)
+            // Disimpan di inventori (tab KENDARAAN). Tekan V atau pilih di inventori untuk memanggil /
+            // memarkir kendaraan di mana saja di luar ruangan.
+            new ItemDef { Id = "sepeda", Name = "Sepeda", Price = 300000, SoldAt = new[] { LocationId.DealerKendaraan },
+                Speed = 1.35f, TravelMinutes = 60,
+                Desc = "Sepeda onthel. Syarat Kurir Makanan. 35% lebih cepat dari berjalan. Bisa dikayuh ke wilayah lain dari terminal (60 menit, gratis)." },
+            new ItemDef { Id = "skuter", Name = "Skuter Matic", Price = 900000, SoldAt = new[] { LocationId.DealerKendaraan },
+                Speed = 1.6f, Engine = true, TravelMinutes = 25, Fuel = 3000,
+                Desc = "Skuter matic irit warna toska. 60% lebih cepat dan tidak menguras energi. Bisa dikendarai ke wilayah lain." },
+            new ItemDef { Id = "motor", Name = "Sepeda Motor", Price = 1500000, SoldAt = new[] { LocationId.DealerKendaraan },
+                Speed = 1.8f, Engine = true, TravelMinutes = 20, Fuel = 4000,
+                Desc = "Motor bebek merah. 80% lebih cepat, tidak menguras energi. Bisa dikendarai ke wilayah lain." },
+            new ItemDef { Id = "mobil", Name = "Mobil Pribadi", Price = 3500000, SoldAt = new[] { LocationId.DealerKendaraan },
+                Speed = 2.0f, Engine = true, TravelMinutes = 15, Fuel = 10000,
+                Desc = "Mobil kecil biru, impian para perantau. Dua kali lebih cepat dan nyaman untuk perjalanan antarwilayah." },
+
+            // ---- Elektronik (Toko Elektronik Cahaya)
+            new ItemDef { Id = "kamera", Name = "Kamera", Price = 500000, SoldAt = new[] { LocationId.TokoElektronik },
                 Desc = "Syarat pekerjaan Fotografer di Alun-Alun Merdeka." },
+
+            // ---- Perlengkapan memancing (Toko Pancing Bahari)
             new ItemDef { Id = "alat_pancing", Name = "Alat Pancing", Price = 100000,
-                SoldAt = new[] { LocationId.TokoKebutuhanRumah },
+                SoldAt = new[] { LocationId.TokoPancing },
                 Desc = "Syarat pekerjaan Nelayan di Pantai Cemara." },
+
+            // ---- Pakaian (Toko Pakaian, Pasar Ramai Jaya)
+            // Outfit = baris badan di spritesheet karakter; kepala tetap milik tokoh utama.
+            // Dipakai langsung saat dibeli; ganti/lepas lewat inventori (tab PAKAIAN) atau menu toko.
+            Outfit("kaos_merah",     "Kaos Polo Merah",       55000, 22, "Kaos polo merah cerah. Santai untuk jalan-jalan sore."),
+            Outfit("kemeja_hijau",   "Kemeja Hijau",          65000, 34, "Kemeja hijau lengan pendek, adem dipakai seharian."),
+            Outfit("kaos_toska",     "Kaos Toska & Celana Krem", 60000, 33, "Kaos toska dengan celana krem. Cocok untuk ke pantai."),
+            Outfit("kemeja_kotak",   "Kemeja Kotak Biru",     85000, 35, "Kemeja kotak-kotak biru ala anak kota."),
+            Outfit("kemeja_denim",   "Kemeja Denim",          95000, 24, "Kemeja denim biru tua yang awet dan gaya."),
+            Outfit("kemeja_marun",   "Kemeja Marun",          95000, 37, "Kemeja marun dengan ransel. Siap kuliah atau kerja."),
+            Outfit("kemeja_putih",   "Kemeja Putih Rapi",    100000, 32, "Kemeja putih bersih. Pas untuk melamar kerja."),
+            Outfit("seragam_putih",  "Setelan Putih Abu-abu", 90000, 30, "Kemeja putih dan celana abu-abu, rapi seperti anak sekolah."),
+            Outfit("kemeja_pantai",  "Kemeja Pantai",        110000, 51, "Kemeja motif bunga warna toska. Liburan banget!"),
+            Outfit("flanel_merah",   "Kemeja Flanel Merah",  120000, 2,  "Flanel kotak merah dengan celana jeans."),
+            Outfit("hoodie_navy",    "Hoodie Navy",          140000, 31, "Hoodie biru dongker yang hangat untuk malam hari."),
+            Outfit("jaket_hitam",    "Jaket Hitam",          150000, 21, "Jaket hitam dengan jeans biru. Keren di mana saja."),
+            Outfit("jaket_kurir",    "Jaket Hijau Lapangan", 130000, 72, "Jaket hijau tebal ala kurir. Tahan angin di jalan."),
+            Outfit("rompi_foto",     "Rompi Fotografer",     160000, 71, "Rompi krem banyak saku dan celana kargo. Gaya fotografer."),
+            Outfit("batik_hijau",    "Kemeja Batik",         180000, 18, "Kemeja batik motif kembang. Pantas untuk acara resmi."),
+            Outfit("jas_kantor",     "Setelan Jas Kantor",   350000, 38, "Jas biru tua dan dasi merah. Tampil profesional."),
+
+            // ---- Barang misi sampingan (diberikan pemberi misi, diserahkan kepada penerima)
+            new ItemDef { Id = "rantang_siti", Name = "Rantang Bu Siti", Quest = true,
+                Desc = "Masakan Bu Siti untuk Pak Slamet di Pos Ronda Kampung Cempaka." },
+            new ItemDef { Id = "suku_cadang", Name = "Kotak Suku Cadang", Quest = true,
+                Desc = "Pesanan Pak Hadi di Terminal Jogokerto dari Bengkel Jaya Motor." },
+            new ItemDef { Id = "sayur_pesanan", Name = "Sayur Pesanan Kafe", Quest = true,
+                Desc = "Sayuran segar dari Pak Rudi untuk Riko di Cafe Senja." },
+            new ItemDef { Id = "titipan_rukmini", Name = "Bungkusan Bumbu", Quest = true,
+                Desc = "Titipan Bu Rukmini untuk Bu Sari di Pasar Ramai Jaya." },
+            new ItemDef { Id = "obat_ternak", Name = "Vitamin Ternak", Quest = true,
+                Desc = "Paket dari Rumah Sakit Sehat untuk Pak Karman di Peternakan Kecil." },
+
 
             // ---- Barang misi (didapat dari cerita, dipakai untuk menyelesaikan misi)
             new ItemDef { Id = "tas", Name = "Tas Ransel", Quest = true,
@@ -185,6 +274,10 @@ namespace PixelAdventure.LifeSim.Pulang
             foreach (var i in All) if (i.Id == id) return i;
             return null;
         }
+
+        static ItemDef Outfit(string id, string name, int price, int sheetRow, string desc) =>
+            new ItemDef { Id = id, Name = name, Price = price, Outfit = sheetRow, Desc = desc,
+                SoldAt = new[] { LocationId.TokoPakaian } };
 
         public static IEnumerable<ItemDef> SoldAt(LocationId loc)
         {

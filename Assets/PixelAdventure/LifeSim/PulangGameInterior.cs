@@ -37,11 +37,12 @@ namespace PixelAdventure.LifeSim
             StartCoroutine(DoorRoutine(() =>
             {
                 LeaveInteriorSilently();
+                ScatterNpcs(_world.CurrentRegion);
                 Vector2 door = _world.Spot(loc);
                 _player.Teleport(door.x, door.y);
                 _cameraRig?.Snap();
                 _world.UpdateSigns(door);
-            }, null));
+            }, null, "door_close"));
         }
 
         /// <summary>Tutup ruangan tanpa animasi (dipakai juga saat tidur/pindah wilayah).</summary>
@@ -54,12 +55,43 @@ namespace PixelAdventure.LifeSim
             _interiorSpot = -1;
         }
 
+        /// <summary>
+        /// Suara latar sesuai tempat & waktu: di dalam bangunan hening; malam = jangkrik;
+        /// kota & pasar = keramaian lalu lintas; pantai = ombak; desa & kampung = kicau burung.
+        /// </summary>
+        string AmbienceKey(float dark)
+        {
+            if (_world.InInterior) return null;
+            if (dark > 0.6f) return _world.CurrentRegion == Region.PantaiCemara ? "beach" : "night";
+            switch (_world.CurrentRegion)
+            {
+                case Region.KotaJogokerto:
+                case Region.PasarRamaiJaya: return "city";
+                case Region.PantaiCemara: return "beach";
+                default: return "nature";
+            }
+        }
+
+        /// <summary>Lagu latar: malam (19.00–05.00) lagu tenang; siang sesuai wilayah.</summary>
+        int MusicFor(float minutes)
+        {
+            bool night = minutes >= 1140f || minutes < 300f;
+            if (night) return GameAudio.MusicNight;
+            switch (_world.CurrentRegion)
+            {
+                case Region.KotaJogokerto: return GameAudio.MusicTown;
+                case Region.PasarRamaiJaya: return GameAudio.MusicMarket;
+                case Region.PantaiCemara: return GameAudio.MusicBeach;
+                default: return GameAudio.MusicVillage;     // Desa Suka Makmur & Kampung Cempaka
+            }
+        }
+
         /// <summary>Layar gelap sebentar saat lewat pintu.</summary>
-        IEnumerator DoorRoutine(System.Action swap, System.Action after)
+        IEnumerator DoorRoutine(System.Action swap, System.Action after, string sound = "door_open")
         {
             _state = State.Busy;
             _hud.SetPrompt(null);
-            GameAudio.Play("land", 0.45f);
+            GameAudio.Play(sound, 0.5f);
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 6f) { _hud.SetFade(t); yield return null; }
             _hud.SetFade(1f);
             swap();

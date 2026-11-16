@@ -17,8 +17,8 @@ namespace PixelAdventure.LifeSim
     /// </summary>
     public partial class LifeHud
     {
-        const int TabletAppsMax = 10;
-        const int TabletCols = 5;
+        const int TabletAppsMax = 12;
+        const int TabletCols = 6;
 
         Transform _tabGroup;
         SpriteRenderer _tabBezel, _tabScreen, _tabStatusBar, _tabStatusL, _tabStatusR, _tabCamera, _tabHomeBtn;
@@ -49,7 +49,7 @@ namespace PixelAdventure.LifeSim
             }
             _tabDesc = Text(_tabGroup, "Desc", " ", 1, Soft, new Vector2(0.5f, 0.5f), 4014);
             _tabMessage = Text(_tabGroup, "Message", " ", 1, Pink, new Vector2(0.5f, 0.5f), 4014);
-            _tabHint = Text(_tabGroup, "Hint", "WASD - PILIH   E - BUKA   TAB / ESC - TUTUP", 1, Gold,
+            _tabHint = Text(_tabGroup, "Hint", "WASD / KURSOR - PILIH   E / KLIK - BUKA   TAB / ESC - TUTUP", 1, Gold,
                 new Vector2(0.5f, 0.5f), 4014);
             _tabGroup.gameObject.SetActive(false);
         }
@@ -62,8 +62,8 @@ namespace PixelAdventure.LifeSim
             _tabCount = Mathf.Min(apps.Count, TabletAppsMax);
             _tabSel = Mathf.Clamp(selected, 0, Mathf.Max(0, _tabCount - 1));
             SetText(_tabTitle, title.ToUpperInvariant(), Ink, 2, new Vector2(0.5f, 0.5f));
-            SetText(_tabStatusL, statusLeft.ToUpperInvariant(), Soft, 1, new Vector2(0f, 0.5f));
-            SetText(_tabStatusR, statusRight.ToUpperInvariant(), Soft, 1, new Vector2(1f, 0.5f));
+            SetHint(_tabStatusL, statusLeft.ToUpperInvariant(), Soft, 0f);
+            SetHint(_tabStatusR, statusRight.ToUpperInvariant(), Soft, 1f);
             for (int i = 0; i < TabletAppsMax; i++)
             {
                 bool show = i < _tabCount;
@@ -77,11 +77,10 @@ namespace PixelAdventure.LifeSim
                 _tabTiles[i].color = tile;
                 _tabIcons[i].sprite = PixelArt.Get(a.Icon);
                 _tabIcons[i].color = a.Enabled ? Color.white : new Color(1f, 1f, 1f, 0.4f);
-                SetText(_tabLabels[i], a.Label.ToUpperInvariant(), sel ? Gold : a.Enabled ? Ink : Soft, 1,
-                    new Vector2(0.5f, 0.5f));
+                SetHint(_tabLabels[i], a.Label.ToUpperInvariant(), sel ? Gold : a.Enabled ? Ink : Soft);
             }
             string desc = _tabCount > 0 ? apps[_tabSel].Desc : " ";
-            SetText(_tabDesc, string.IsNullOrEmpty(desc) ? " " : desc.ToUpperInvariant(), Soft, 1, new Vector2(0.5f, 0.5f));
+            SetHint(_tabDesc, string.IsNullOrEmpty(desc) ? " " : desc.ToUpperInvariant(), Soft);
             SetText(_tabMessage, string.IsNullOrEmpty(message) ? " " : message.ToUpperInvariant(), Pink, 1,
                 new Vector2(0.5f, 0.5f));
             SetDim(0.6f);
@@ -101,6 +100,7 @@ namespace PixelAdventure.LifeSim
             float w = Mathf.Min(halfW * 2f - 2f, 24f);
             float h = Mathf.Min(halfH * 2f - 1.2f, 14.4f);
             SetRect(_tabBezel, 0f, 0f, w, h);
+            CloseAt(w * 0.5f, h * 0.5f);
 
             float sw = w - 1.3f, sh = h - 1.9f;
             float scy = 0.1f;
@@ -112,15 +112,17 @@ namespace PixelAdventure.LifeSim
             SetSolid(_tabStatusBar, 0f, sTop - 0.3f, sw, 0.6f);
             _tabStatusL.transform.localPosition = new Vector3(sLeft + 0.35f, sTop - 0.3f, 0f);
             _tabStatusR.transform.localPosition = new Vector3(-sLeft - 0.35f, sTop - 0.3f, 0f);
+            FitHint(_tabStatusL, sw * 0.5f - 0.6f);
+            FitHint(_tabStatusR, sw * 0.5f - 0.6f);
             _tabTitle.transform.localPosition = new Vector3(0f, sTop - 1.35f, 0f);
 
-            // Grid aplikasi 4x2 di tengah layar tablet.
+            // Grid aplikasi 6 kolom x 2 baris di tengah layar tablet.
             int rows = Mathf.CeilToInt(_tabCount / (float)TabletCols);
             float tile = Mathf.Min(2.1f, (sw - 1.5f) / TabletCols - 0.9f);
             float cellW = (sw - 1.0f) / TabletCols;
             float cellH = tile + 1.0f;
             float gridTop = sTop - 2.35f;
-            float bob = Mathf.Sin(_time * 5f) * 0.05f;
+            float bob = Mathf.Sin(_time * 3f) * 0.05f;
             for (int i = 0; i < _tabCount; i++)
             {
                 int col = i % TabletCols, row = i / TabletCols;
@@ -136,6 +138,8 @@ namespace PixelAdventure.LifeSim
                 _tabIcons[i].transform.localPosition = new Vector3(cx, cy, 0f);
                 _tabIcons[i].transform.localScale = Vector3.one * (tile * 0.7f);
                 _tabLabels[i].transform.localPosition = new Vector3(cx, cy - tile * 0.5f - 0.38f, 0f);
+                FitHint(_tabLabels[i], cellW - 0.15f);   // label tidak menempel ke label sebelah
+                Hit(UiHit.TabletApp, i, new Rect(cx - cellW * 0.5f + 0.1f, cy - tile * 0.5f - 0.7f, cellW - 0.2f, tile + 0.85f));
             }
             _tabFrame.gameObject.SetActive(_tabCount > 0);
 
@@ -143,6 +147,9 @@ namespace PixelAdventure.LifeSim
             _tabDesc.transform.localPosition = new Vector3(0f, Mathf.Max(below - 0.1f, sBottom + 1.35f), 0f);
             _tabMessage.transform.localPosition = new Vector3(0f, sBottom + 0.95f, 0f);
             _tabHint.transform.localPosition = new Vector3(0f, sBottom + 0.4f, 0f);
+            FitHint(_tabDesc, sw - 0.8f);
+            SetHint(_tabHint, "WASD / KURSOR - PILIH   E / KLIK - BUKA   TAB / ESC - TUTUP", Gold);
+            FitHint(_tabHint, sw - 0.6f);
         }
     }
 }

@@ -17,12 +17,15 @@ namespace PixelAdventure.LifeSim
                 "KETUK / KLIK|Jalan ke titik itu",
                 "KETUK 2X|Berlari ke titik itu",
                 "SHIFT|Berlari (tahan)",
+                "V|Panggil / simpan kendaraan",
                 "E / SPASI|Bicara, masuk, pilih",
                 "TAB|Buka tablet",
                 "I|Inventori",
                 "T|Daftar tugas",
                 "J|Jurnal",
                 "G|Buku panduan",
+                "F|Peta semua wilayah",
+                "MOUSE|Arahkan = pilih, klik = jalankan. Tombol kanan bawah: Tas, Tugas, Jurnal, Peta, Tablet, Jeda.",
                 "P / ESC|Jeda permainan",
                 "M|Suara nyala / mati",
             } },
@@ -30,22 +33,28 @@ namespace PixelAdventure.LifeSim
             {
                 "Tujuan misi|Tertulis di panel kiri atas layar.",
                 "Panah kuning|Menunjuk arah tujuan misi terdekat.",
-                "Minimap|Kuning = misi, bintang = kerja, pink = teman.",
+                "Minimap|Kuning = misi, bintang = kerja, pink = teman. Panah di tepi = jalan ke wilayah sebelah.",
+                "Peta (F)|Ketuk minimap atau tekan F: lihat semua wilayah, tempat, dan arah ke sana.",
                 "Daftar tugas (T)|Lihat misi yang bisa, sudah, dan belum bisa dikerjakan.",
+                "Misi sampingan|NPC bertanda ! punya misi baru (boleh ditolak). Tanda ? = tujuan misimu. Hadiah uang, EXP, reputasi.",
+                "Bebas menjelajah|Semua tempat di kota terbuka sejak tiba. Misi utama bisa ditunda kapan saja.",
             } },
             new GuidePage { Title = "WAKTU & ENERGI", Icon = "lc_item_food", Entries = new[]
             {
                 "Waktu|Pagi, siang, sore, lalu malam. Lewat tengah malam kamu tertidur.",
                 "Energi|Berkurang saat bekerja dan berlari.",
                 "Makan|Beli makanan atau makan bekal untuk menambah energi.",
-                "Tidur|Di kost setelah 18.00, atau di penginapan.",
+                "Tidur|Di kost setelah 18.00, atau di penginapan. Pilih slot simpanan sebelum tidur.",
             } },
             new GuidePage { Title = "KERJA & UANG", Icon = "lc_item_gear", Entries = new[]
             {
                 "Melamar|Datangi tempat kerja yang ditandai bintang biru.",
                 "Jam kerja|Datang tepat waktu agar upah tidak dipotong.",
+                "Saat bekerja|Tiap pekerjaan punya permainan sendiri: pilih jawaban, panah, tekan cepat, tepat waktu, atau bidik.",
+                "Bonus|Semua tugas tepat = bonus upah. Kombo beruntun dihitung.",
                 "Level|Bekerja memberi EXP. Naik level membuka pekerjaan baru.",
                 "Kursus|Pekerjaan tinggi butuh kursus di Perpustakaan.",
+                "Pakaian|Beli baju di Toko Pakaian (Pasar Ramai Jaya). Ganti atau lepas lewat Tas, tab PAKAIAN.",
             } },
             new GuidePage { Title = "TEMPAT & BUS", Icon = "lc_app_home", Entries = new[]
             {
@@ -53,6 +62,7 @@ namespace PixelAdventure.LifeSim
                 "Di dalam|Datangi kasir, kasur, atau resepsionis.",
                 "Keluar|Berjalan ke keset pintu di bawah.",
                 "Bus|Naik dari terminal. Tujuan misi bertanda [MISI].",
+                "Kendaraan|Beli di Dealer (Kota). Tekan V di luar untuk memanggil / menyimpan. Bisa dikendarai antarwilayah dari terminal.",
             } },
             new GuidePage { Title = "TEMAN", Icon = "lc_item_gift", Entries = new[]
             {
@@ -82,7 +92,7 @@ namespace PixelAdventure.LifeSim
             _returnToTablet = fromTablet;
             _state = State.Guide;
             _hud.SetPrompt(null);
-            GameAudio.Play("click", 0.4f);
+            GameAudio.Play("page", 0.5f);
             _hud.ShowGuide(GuidePages);    // halaman disusun otomatis (topik panjang bersambung)
             _inputLock = 0.2f;
         }
@@ -93,11 +103,16 @@ namespace PixelAdventure.LifeSim
             if (LifeInput.CancelPressed || LifeInput.GuidePressed || LifeInput.InteractPressed)
             {
                 _hud.HideGuide();
-                CloseSubScreen();
+                if (_guideFromHome) { _guideFromHome = false; ShowTitle(); }   // dibuka dari halaman utama
+                else CloseSubScreen();
                 return;
             }
             int move = LifeInput.LeftPressed ? -1 : LifeInput.RightPressed ? 1 : 0;
-            if (move != 0 && _hud.GuideFlip(move)) GameAudio.Play("click", 0.35f);
+            // Kursor: klik halaman kiri = mundur, halaman kanan = maju; roda mouse juga membalik halaman.
+            if (move == 0 && _hud.PointerClick(UiHit.GuidePage, out int page)) move = page == 0 ? -1 : 1;
+            float wheel = LifeInput.ScrollWheel;
+            if (move == 0 && wheel != 0f) move = wheel > 0f ? -1 : 1;
+            if (move != 0 && _hud.GuideFlip(move)) GameAudio.Play("page", 0.45f);
         }
     }
 }

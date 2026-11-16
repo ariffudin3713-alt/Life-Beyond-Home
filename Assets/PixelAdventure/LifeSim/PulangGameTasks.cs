@@ -43,6 +43,14 @@ namespace PixelAdventure.LifeSim
             if (LifeInput.LeftPressed) { _hud.FocusTaskCard(-1); GameAudio.Play("click", 0.35f); }
             if (LifeInput.RightPressed) { _hud.FocusTaskCard(1); GameAudio.Play("click", 0.35f); }
 
+            // Kursor: arahkan / klik kartu = pilih (roda mouse lalu menggulir kartu itu).
+            if ((_hud.PointerHover(UiHit.TaskCard, out int card) || _hud.PointerClick(UiHit.TaskCard, out card))
+                && card != _hud.TaskFocus)
+            {
+                _hud.FocusTaskCardAt(card);
+                GameAudio.Play("click", 0.25f);
+            }
+
             float y = LifeInput.Y;
             if (Mathf.Abs(y) > 0.2f) _hud.ScrollTasks(-y * 9f * Time.unscaledDeltaTime);
 
@@ -109,6 +117,9 @@ namespace PixelAdventure.LifeSim
                 else if (!j.Flexible && D.minutes < j.Start - 60) locked.Add(new TaskItem(title, "Mulai pukul " + Hour(j.Start)));
                 else available.Add(new TaskItem(title, hours + " - " + place));
             }
+
+            // ---------------- misi sampingan (berjalan, baru, dan selesai)
+            CollectSideTasks(available, done);
 
             // ---------------- misi sebelumnya yang sudah tamat (terbaru dulu)
             for (var s = D.state - 1; s > StoryState.NameEntry; s--)

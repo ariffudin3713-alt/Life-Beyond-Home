@@ -28,7 +28,21 @@ namespace PixelAdventure.LifeSim
             BuildTrafficArt();
             BuildTabletArt();
             BuildInteriorArt();
+            BuildInteriorArt2();
             BuildDecorArt();
+            BuildHomeArt();
+            BuildIndoArt();
+            BuildIndoArt2();
+            BuildWorshipArt();
+            BuildQuestItemArt();
+            BuildWorkArt();
+            BuildFacadeArt();
+            BuildVehicleArt();
+            BuildTownArt2();
+
+            // Terakhir: timpa sprite karakter prosedural dengan spritesheet 74 karakter.
+            ApplyCharacterSheet();
+
         }
 
         static Sprite Add(PixelCanvas c, Vector2 pivot, string key)

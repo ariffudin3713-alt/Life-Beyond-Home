@@ -3,7 +3,7 @@ using UnityEngine;
 namespace PixelAdventure.LifeSim
 {
     /// <summary>Jenis ruangan dalam bangunan.</summary>
-    public enum InteriorKind { Home, Shop, Cafe, Inn, Office, Library, Workshop }
+    public enum InteriorKind { Home, Shop, Cafe, Inn, Office, Library, Workshop, Dealer, Electronics, Books, Clothes, Flowers, Grocery, Fishing, Hospital, School, Balai, Mosque, Church }
 
     /// <summary>
     /// Gambar ruangan dalam: lantai + dinding belakang (dibuat sekali per jenis & ukuran)
@@ -162,7 +162,19 @@ namespace PixelAdventure.LifeSim
                 case InteriorKind.Library:  a = PixelArt.Hex("a8754a"); b = PixelArt.Hex("98683f"); wall = PixelArt.Hex("e6dcc4"); wallDark = PixelArt.Hex("6b4126"); break;
                 case InteriorKind.Workshop: a = PixelArt.Hex("8f8b84"); b = PixelArt.Hex("85817a"); wall = PixelArt.Hex("c9c6be"); wallDark = PixelArt.Hex("5b5f66"); break;
                 case InteriorKind.Office:   a = PixelArt.Hex("cfd3d8"); b = PixelArt.Hex("bfc4ca"); wall = PixelArt.Hex("eef0f2"); wallDark = PixelArt.Hex("6b737c"); break;
-                default:                    a = PixelArt.Hex("eef0ee"); b = PixelArt.Hex("dfe3e0"); wall = PixelArt.Hex("f6f3ea"); wallDark = PixelArt.Hex("6fae9a"); break;   // toko
+                case InteriorKind.Dealer:      a = PixelArt.Hex("d6dadf"); b = PixelArt.Hex("c4c9cf"); wall = PixelArt.Hex("f2f2f2"); wallDark = PixelArt.Hex("d8384a"); break;
+                case InteriorKind.Electronics: a = PixelArt.Hex("b9c2cc"); b = PixelArt.Hex("aab3be"); wall = PixelArt.Hex("dfe8f2"); wallDark = PixelArt.Hex("2f5fa8"); break;
+                case InteriorKind.Books:       a = PixelArt.Hex("b0804e"); b = PixelArt.Hex("a07444"); wall = PixelArt.Hex("efe4c8"); wallDark = PixelArt.Hex("4f7a63"); break;
+                case InteriorKind.Clothes:     a = PixelArt.Hex("d8b48a"); b = PixelArt.Hex("cba67c"); wall = PixelArt.Hex("fbe6ee"); wallDark = PixelArt.Hex("c0587e"); break;
+                case InteriorKind.Flowers:     a = PixelArt.Hex("d9a07a"); b = PixelArt.Hex("cc916b"); wall = PixelArt.Hex("eaf4e2"); wallDark = PixelArt.Hex("4f9a5c"); break;
+                case InteriorKind.Grocery:     a = PixelArt.Hex("b8b4aa"); b = PixelArt.Hex("aca89e"); wall = PixelArt.Hex("f2ead2"); wallDark = PixelArt.Hex("3f8a5a"); break;
+                case InteriorKind.Fishing:     a = PixelArt.Hex("9c7650"); b = PixelArt.Hex("8e6a46"); wall = PixelArt.Hex("d8eef2"); wallDark = PixelArt.Hex("2f6f8a"); break;
+                case InteriorKind.Hospital:    a = PixelArt.Hex("eef6f4"); b = PixelArt.Hex("dcebe7"); wall = PixelArt.Hex("f4fbf9"); wallDark = PixelArt.Hex("4fae9a"); break;
+                case InteriorKind.School:      a = PixelArt.Hex("e2d6b8"); b = PixelArt.Hex("d4c8aa"); wall = PixelArt.Hex("f2ecd8"); wallDark = PixelArt.Hex("6b8a4c"); break;
+                case InteriorKind.Balai:       a = PixelArt.Hex("a8754a"); b = PixelArt.Hex("98683f"); wall = PixelArt.Hex("f0e6cc"); wallDark = PixelArt.Hex("8a3a32"); break;
+                case InteriorKind.Mosque:      a = PixelArt.Hex("2f7d58"); b = PixelArt.Hex("286e4d"); wall = PixelArt.Hex("f4f0e2"); wallDark = PixelArt.Hex("2e8f62"); break;
+                case InteriorKind.Church:      a = PixelArt.Hex("b0804e"); b = PixelArt.Hex("a07444"); wall = PixelArt.Hex("efe8dc"); wallDark = PixelArt.Hex("8a5a3c"); break;
+                default:                   a = PixelArt.Hex("eef0ee"); b = PixelArt.Hex("dfe3e0"); wall = PixelArt.Hex("f6f3ea"); wallDark = PixelArt.Hex("6fae9a"); break;   // toko
             }
 
             // Lantai.
@@ -173,6 +185,7 @@ namespace PixelAdventure.LifeSim
                     switch (kind)
                     {
                         case InteriorKind.Home: case InteriorKind.Cafe: case InteriorKind.Library:
+                        case InteriorKind.Books: case InteriorKind.Clothes: case InteriorKind.Fishing: case InteriorKind.Balai:
                             // papan kayu: baris 8 px, sambungan berselang
                             int plank = y / 8;
                             int seam = (x + plank * 23) % 48;
@@ -182,7 +195,27 @@ namespace PixelAdventure.LifeSim
                         case InteriorKind.Inn:
                             col = ((x / 4 + y / 4) % 6 == 0) ? b : a;     // karpet bermotif
                             break;
-                        case InteriorKind.Workshop:
+                        case InteriorKind.Mosque:
+                            // karpet masjid hijau: garis saf setiap 22 px + motif kubah kecil
+                            col = (y / 2) % 2 == 0 ? a : b;
+                            if (y % 22 == 0) col = PixelArt.Hex("e8b23a");
+                            else if (y % 22 == 11 && x % 16 == 8) col = PixelArt.Hex("8fd0a8");
+                            break;
+                        case InteriorKind.Church:
+                        {
+                            // lantai kayu dengan karpet merah di lorong tengah
+                            int center = pw / 2;
+                            if (Mathf.Abs(x - center) < 26)
+                                col = Mathf.Abs(x - center) >= 24 ? PixelArt.Hex("e8b23a") : (y % 6 == 0 ? PixelArt.Hex("962a32") : PixelArt.Hex("b0323a"));
+                            else
+                            {
+                                int pl = y / 8;
+                                col = pl % 2 == 0 ? a : b;
+                                if (y % 8 == 0 || (x + pl * 23) % 48 == 0) col = Color32.Lerp(col, FurnOutline, 0.35f);
+                            }
+                            break;
+                        }
+                        case InteriorKind.Workshop: case InteriorKind.Grocery:
                             col = Hash(x / 3, y / 3) % 9 == 0 ? b : a;    // beton
                             break;
                         default:

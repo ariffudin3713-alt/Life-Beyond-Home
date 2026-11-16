@@ -26,7 +26,7 @@ namespace PixelAdventure.LifeSim
     /// </summary>
     public partial class PulangGame : MonoBehaviour
     {
-        enum State { Title, NameEntry, Playing, Dialogue, Menu, Work, Pause, Journal, Tasks, Inventory, Tablet, Profile, Guide, Busy, Ending }
+        enum State { Title, NameEntry, Playing, Dialogue, Menu, Work, Pause, Journal, Tasks, Inventory, Tablet, Profile, Guide, Busy, Ending, Contacts, WorldMap, Settings, Amount }
 
         public static PulangGame Instance { get; private set; }
         public bool CanAmbientMove => _state == State.Playing;
@@ -89,8 +89,9 @@ namespace PixelAdventure.LifeSim
 
             _story.PlayScene += OnStoryScene;
             _story.StateChanged += OnStoryStateChanged;
-            _story.ObjectiveCompleted += text => { _hud.ShowToast(text.ToUpperInvariant()); GameAudio.Play("checkpoint", 0.5f); SyncQuestItems(); };
+            _story.ObjectiveCompleted += text => { _hud.ShowToast(text.ToUpperInvariant()); GameAudio.Play("quest_done", 0.55f); SyncQuestItems(); };
             _story.GameFinished += OnGameFinished;
+            _story.AnyEvent += OnSideEvent;
 
             PlacePlayerAt(Region.DesaSukaMakmur, _world.Spot(LocationId.RumahZidan));
             ShowTitle();
@@ -101,7 +102,9 @@ namespace PixelAdventure.LifeSim
         void StartNewGame()
         {
             _today.Clear();
+            _questItemsBaseline = false;
             _story.NewGame();                 // -> NameEntry (lewat StateChanged)
+            ApplyOutfit();
             _clock = D.minutes;
             PlacePlayerAt(Region.DesaSukaMakmur, _world.Spot(LocationId.RumahZidan));
             RefreshNpcVisibility();
@@ -110,11 +113,13 @@ namespace PixelAdventure.LifeSim
         void ContinueGame(PulangSaveData data)
         {
             _today.Clear();
+            _questItemsBaseline = false;
             _clock = data.minutes;
             Vector2 pos = data.posX >= 0f ? new Vector2(data.posX, data.posY) : _world.ArrivalSpot(data.region);
             PlacePlayerAt(data.region, pos);
             _hud.HideTitle();
             _story.Resume(data);
+            ApplyOutfit();
             if (data.state != StoryState.NameEntry) EnterPlaying();
             RefreshNpcVisibility();
         }
@@ -164,6 +169,16 @@ namespace PixelAdventure.LifeSim
                 if (_state == State.Pause) _hud.ShowPause(GameAudio.Muted);
             }
 
+            // Tombol X di pojok layar yang terbuka = ESC (menutup / kembali).
+            bool closable = CanCloseScreen();
+            _hud.SetCloseAllowed(closable);
+            _hud.SetPlayInput(_state == State.Playing);   // bilah tombol HUD hanya saat bermain bebas
+            if (closable && _inputLock <= 0f && _hud.CloseButtonClicked())
+            {
+                GameAudio.Play("click", 0.4f);
+                LifeInput.InjectCancel();
+            }
+
             switch (_state)
             {
                 case State.Title: UpdateTitle(); break;
@@ -179,10 +194,38 @@ namespace PixelAdventure.LifeSim
                 case State.Tablet: UpdateTablet(); break;
                 case State.Profile: UpdateProfile(); break;
                 case State.Guide: UpdateGuide(); break;
+                case State.Contacts: UpdateContacts(); break;
+                case State.WorldMap: UpdateWorldMap(); break;
+                case State.Settings: UpdateSettings(); break;
+                case State.Amount: UpdateAmount(); break;
                 case State.Ending: UpdateEnding(); break;
             }
 
             if (_story.Data != null) SyncNight();
+        }
+
+        /// <summary>Layar yang sedang terbuka bisa ditutup dengan tombol X (sama dengan ESC)?</summary>
+        bool CanCloseScreen()
+        {
+            switch (_state)
+            {
+                case State.Menu: return _menuCancellable;
+                case State.Pause:
+                case State.Journal:
+                case State.Tasks:
+                case State.Inventory:
+                case State.Tablet:
+                case State.Profile:
+                case State.Guide:
+                case State.Contacts:
+                case State.WorldMap:
+                case State.Settings:
+                case State.Amount:
+                case State.Work:      // mini-game kerja: X / ESC = berhenti lebih awal
+                    return true;
+                case State.Title: return _homePage == HomePage.Slots;   // slot simpanan -> kembali ke menu utama
+                default: return false;
+            }
         }
 
         void EnterPlaying()
@@ -201,9 +244,16 @@ namespace PixelAdventure.LifeSim
             TryAutoScene();
         }
 
+        /// <summary>
+        /// Kecepatan jam permainan (menit game per detik nyata). Siang 06.00–20.00 ±8,75 menit nyata,
+        /// malam 20.00–06.00 ±4,5 menit nyata: satu hari penuh ±13 menit (sebelumnya ±8 menit).
+        /// </summary>
+        const float DayMinutesPerSecond = 1.6f;
+        const float NightMinutesPerSecond = 2.2f;
+
         void UpdatePlaying(float dt)
         {
-            _clock += dt * ((_clock < 360f || _clock >= 1200f) ? 3.4f : 2.6f);
+            _clock += dt * ((_clock < 360f || _clock >= 1200f) ? NightMinutesPerSecond : DayMinutesPerSecond);
             if (_clock >= 1440f)
             {
                 PassOut();
@@ -212,7 +262,8 @@ namespace PixelAdventure.LifeSim
             D.minutes = Mathf.Clamp((int)_clock, 0, 1439);
 
             if (HandleTap()) return;                      // ketuk / klik: jalan ke titik atau objek
-            _player.Tick(dt, D.energy > RunMinEnergy);
+            bool onMotor = ApplyVehicleSpeed();
+            _player.Tick(dt, !onMotor && D.energy > RunMinEnergy);   // di atas motor tidak perlu berlari
             AfterTapMove();
             UpdateRunEnergy(dt);
             if (!_world.InInterior)
@@ -222,6 +273,7 @@ namespace PixelAdventure.LifeSim
                 FaceNearbyNpcs();
                 _world.UpdateSigns(_player.Feet);
                 CheckArrival();
+                if (CheckEdgeTravel()) return;    // berjalan ke ujung peta -> wilayah sebelah
             }
             else if (CheckInteriorExit()) return;
 
@@ -240,7 +292,9 @@ namespace PixelAdventure.LifeSim
             if (LifeInput.InventoryPressed) { OpenInventory(false); return; }
             if (LifeInput.TabletPressed) { OpenTablet(); return; }
             if (LifeInput.GuidePressed) { OpenGuide(false); return; }
+            if (LifeInput.MapPressed) { OpenWorldMap(false); return; }
             if (LifeInput.PausePressed) { OpenPause(); return; }
+            if (LifeInput.VehiclePressed && _inputLock <= 0f) { ToggleVehicle(); return; }
             if (LifeInput.InteractPressed && _inputLock <= 0f) Interact();
         }
 
@@ -285,8 +339,8 @@ namespace PixelAdventure.LifeSim
 
         void UpdateEnding()
         {
-            if (_inputLock > 0f || !LifeInput.InteractPressed) return;
-            PulangSaveData.Delete();          // tidak ada ending lain; mulai lagi dari awal
+            if (_inputLock > 0f || !(LifeInput.InteractPressed || LifeInput.PointerTapped)) return;
+            PulangSaveData.Delete();         // tidak ada ending lain; mulai lagi dari awal
             ShowTitle();
         }
 
@@ -316,6 +370,38 @@ namespace PixelAdventure.LifeSim
             Line l = _lines[_lineIndex];
             string speaker = string.IsNullOrEmpty(l.Speaker) ? " " : PulangProfile.Format(l.Speaker).ToUpperInvariant();
             _hud.ShowDialogue(speaker, PulangProfile.Format(l.Text).ToUpperInvariant());
+            ShowLinePortraits(l.Speaker);
+            MarkKnownBySpeaker(PulangProfile.Format(l.Speaker));
+        }
+
+        // Potret percakapan ala Citampi: lawan bicara di kiri, tokoh utama di kanan.
+        string _portraitNpc;
+
+        void ShowLinePortraits(string rawSpeaker)
+        {
+            if (_lineIndex == 0) _portraitNpc = null;
+
+            bool isPlayer = rawSpeaker != null && rawSpeaker.Contains("{nama}");
+            bool narration = string.IsNullOrWhiteSpace(rawSpeaker);
+            string npcKey = isPlayer || narration ? null : NpcPortraitKey(PulangProfile.Format(rawSpeaker));
+
+            // Pembicara bernama tanpa potret (mis. "HRD"): lawan bicara sebelumnya disembunyikan.
+            if (npcKey != null) _portraitNpc = npcKey;
+            else if (!isPlayer && !narration) _portraitNpc = null;
+
+            string playerKey = isPlayer || _portraitNpc != null ? "lc_player_down_0" : null;
+            int speaking = isPlayer ? 1 : npcKey != null ? 0 : -1;
+            _hud.SetDialoguePortraits(_portraitNpc, playerKey, speaking);
+        }
+
+        static string NpcPortraitKey(string speaker)
+        {
+            if (string.IsNullOrEmpty(speaker)) return null;
+            foreach (var def in PulangCast.All)
+                if (string.Equals(def.Name, speaker, StringComparison.OrdinalIgnoreCase)
+                    && PulangNpcLines.Sprite.TryGetValue(def.Id, out string s))
+                    return "lc_" + s + "_down_0";
+            return null;
         }
 
         void UpdateDialogue()
@@ -435,15 +521,20 @@ namespace PixelAdventure.LifeSim
         int _menuSelected, _menuCount;
         bool _menuCancellable;
 
-        void OpenMenu(string title, List<string> labels, List<Action> actions, bool cancellable = true)
+        Action _menuOnCancel;
+
+        /// <param name="onCancel">Dipanggil saat menu dibatalkan (ESC / X), mis. kembali ke tablet.</param>
+        void OpenMenu(string title, List<string> labels, List<Action> actions, bool cancellable = true, Action onCancel = null)
         {
             _menuActions.Clear();
             _menuActions.AddRange(actions);
             _menuCount = Mathf.Min(labels.Count, 9);
             _menuSelected = 0;
             _menuCancellable = cancellable;
+            _menuOnCancel = onCancel;
             _state = State.Menu;
             _hud.ShowMenu(title.ToUpperInvariant(), labels, 0);
+            GameAudio.Play("menu_open", 0.3f);
             _inputLock = 0.2f;
         }
 
@@ -453,20 +544,35 @@ namespace PixelAdventure.LifeSim
             if (LifeInput.UpPressed) { _menuSelected = (_menuSelected + _menuCount - 1) % _menuCount; _hud.SetMenuSelection(_menuSelected); GameAudio.Play("click", 0.4f); }
             if (LifeInput.DownPressed) { _menuSelected = (_menuSelected + 1) % _menuCount; _hud.SetMenuSelection(_menuSelected); GameAudio.Play("click", 0.4f); }
 
+            // Kursor: arahkan = pilih, klik = jalankan.
+            if (_hud.PointerHover(UiHit.Menu, out int hover) && hover != _menuSelected && hover < _menuCount)
+            {
+                _menuSelected = hover;
+                _hud.SetMenuSelection(hover);
+                GameAudio.Play("click", 0.25f);
+            }
+            bool clicked = _hud.PointerClick(UiHit.Menu, out int pick) && pick < _menuCount;
+            if (clicked) { _menuSelected = pick; _hud.SetMenuSelection(pick); }
+
             if (_menuCancellable && LifeInput.CancelPressed)
             {
                 _hud.HideMenu();
                 _state = State.Playing;
                 _inputLock = 0.15f;
+                var back = _menuOnCancel;
+                _menuOnCancel = null;
+                back?.Invoke();
+                if (_state == State.Playing) AfterReturnToPlaying();   // kirim kejadian tertunda (mis. beli)
                 return;
             }
-            if (!LifeInput.InteractPressed) return;
+            if (!LifeInput.InteractPressed && !clicked) return;
 
             Action action = _menuActions[_menuSelected];
             _hud.HideMenu();
             _state = State.Playing;
             _inputLock = 0.15f;
             GameAudio.Play("click", 0.6f);
+            _menuOnCancel = null;
             action?.Invoke();
             if (_state == State.Playing) AfterReturnToPlaying();
         }
@@ -485,13 +591,20 @@ namespace PixelAdventure.LifeSim
         void UpdatePause()
         {
             if (_inputLock > 0f) return;
-            if (LifeInput.HomePressed)
+            bool clicked = _hud.PointerClick(UiHit.Pause, out int pick);
+            if (clicked && pick == 2)
+            {
+                GameAudio.ToggleMute();
+                _hud.ShowPause(GameAudio.Muted);
+                return;
+            }
+            if (LifeInput.HomePressed || (clicked && pick == 1))
             {
                 _hud.HidePause();
                 ReturnToHome();
                 return;
             }
-            if (LifeInput.PausePressed || LifeInput.CancelPressed || LifeInput.InteractPressed)
+            if (LifeInput.PausePressed || LifeInput.CancelPressed || LifeInput.InteractPressed || (clicked && pick == 0))
             {
                 _hud.HidePause();
                 _state = State.Playing;
@@ -499,37 +612,6 @@ namespace PixelAdventure.LifeSim
             }
         }
 
-        void OpenJournal()
-        {
-            var q = _story.Current;
-            string chapter = q.Chapter == Chapter.Prolog ? "PROLOG"
-                : q.Chapter == Chapter.Ending ? "ENDING" : "CHAPTER " + (int)q.Chapter;
-
-            var details = new List<string>();
-            foreach (string line in _story.JournalLines())
-                if (details.Count < 7) details.Add(line.ToUpperInvariant());
-            details.RemoveAt(0); // judul sudah tampil sendiri
-
-            details.Add(" ");
-            details.Add("LEVEL " + D.level + "  EXP " + D.exp + "/" + PulangJobs.ExpForNextLevel(D.level) +
-                        "   ENERGI " + D.energy);
-            details.Add("KERJA: " + JobLabel(D.jobMain) + "   SAMPINGAN: " + JobLabel(D.jobSide));
-            details.Add("UANG " + Rp(D.money) + "   TABUNGAN " + Rp(D.savings));
-            if (!D.Has("ratna_wafat")) details.Add("HUBUNGAN DENGAN IBU: " + D.familyCloseness);
-            for (int i = 0; i < PulangRomance.Girls.Length; i++)
-            {
-                if (!_story.IsGirlUnlocked(i) || !D.girls[i].met) continue;
-                var gd = PulangRomance.Girls[i];
-                int ep = D.girls[i].episode;
-                details.Add(gd.Id.ToString().ToUpperInvariant() + " - EPISODE " + ep + "/10" +
-                            (ep > 0 ? ": " + gd.Episodes[ep - 1].ToUpperInvariant() : ""));
-            }
-
-            _state = State.Journal;
-            _hud.SetPrompt(null);
-            _hud.ShowJournal(chapter, PulangProfile.Format(q.Title).ToUpperInvariant(), CurrentHint(), details);
-            _inputLock = 0.2f;
-        }
 
         void UpdateJournal()
         {
@@ -562,6 +644,7 @@ namespace PixelAdventure.LifeSim
             _clock = D.minutes;
             D.energy = Mathf.Clamp(energy, 0, 100);
             _today.Clear();
+            _questItemsBaseline = false;
 
             Region home = _story.Chapter == Chapter.Prolog ? Region.DesaSukaMakmur : Region.KotaJogokerto;
             LocationId bed = home == Region.DesaSukaMakmur ? LocationId.RumahZidan : LocationId.KostPelangi;
@@ -618,9 +701,11 @@ namespace PixelAdventure.LifeSim
         void SyncNight()
         {
             float m = _clock;
-            Color night = new Color(0.04f, 0.05f, 0.16f, 0.58f);
-            Color dusk = new Color(0.42f, 0.18f, 0.26f, 0.20f);
-            Color dawn = new Color(0.34f, 0.22f, 0.38f, 0.24f);
+            // Malam lebih gelap, makin pekat menjelang tengah malam (21.00 -> 0.74, 00.00-03.00 -> 0.86).
+            float deep = m >= 1260f ? Mathf.InverseLerp(1260f, 1440f, m) : m < 180f ? 1f : m < 300f ? 1f - (m - 180f) / 120f : 0f;
+            Color night = new Color(0.02f, 0.03f, 0.11f, Mathf.Lerp(0.74f, 0.86f, deep));
+            Color dusk = new Color(0.42f, 0.16f, 0.24f, 0.30f);
+            Color dawn = new Color(0.30f, 0.20f, 0.36f, 0.32f);
             Color clear = new Color(0f, 0f, 0f, 0f);
             float dark = 0f;
             Color tint = clear;
@@ -638,9 +723,10 @@ namespace PixelAdventure.LifeSim
             _hud.SetNight(tint, lamps);
             _world.SetNight(lamps);
 
-            if (_state == State.Title || _state == State.NameEntry || _state == State.Ending) return;
+            if (_state == State.Title || _state == State.NameEntry || _state == State.Ending) { GameAudio.PlayAmbience(null); return; }
+            GameAudio.PlayAmbience(AmbienceKey(dark));
             bool sad = _story.Data.state >= StoryState.Ch6KabarDuka;
-            GameAudio.PlayMusic(sad ? 5 : (m >= 360f && m < 1080f ? 3 : 4));
+            GameAudio.PlayMusic(sad ? 5 : MusicFor(m));
         }
 
         // ------------------------------------------------------------------ HUD
@@ -685,6 +771,7 @@ namespace PixelAdventure.LifeSim
         {
             LeaveInteriorSilently();
             _world.SetRegion(region);
+            ScatterNpcs(region);
             if (_story.Data != null) D.region = region;
             if (!_world.CanStand(pos.x, pos.y)) pos = _world.ArrivalSpot(region);
             _player.Teleport(pos.x, pos.y);

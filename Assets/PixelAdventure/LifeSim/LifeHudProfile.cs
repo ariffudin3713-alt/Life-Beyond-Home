@@ -31,7 +31,7 @@ namespace PixelAdventure.LifeSim
     {
         const int ProfileRowsMax = 16;
         const int ProfileFriendsMax = 5;
-        const float CharW = 6f / 16f;
+        const float CharW = PixelFont.CharW;
         const float ProfPad = 0.45f;
 
         static readonly Color ProfLine = new Color(1f, 1f, 1f, 0.08f);
@@ -157,9 +157,9 @@ namespace PixelAdventure.LifeSim
                 if (!show) continue;
                 _profFriendIcon[i].sprite = PixelArt.Get(f.Sprite);
                 _profFriendIcon[i].color = f.Known ? Color.white : new Color(0.20f, 0.18f, 0.26f, 1f);  // siluet
-                SetText(_profFriendName[i], f.Known ? Safe(f.Name) : "???", f.Known ? Ink : Soft, 1, new Vector2(0f, 0.5f));
-                SetText(_profFriendL1[i], Safe(f.Line1), f.Known ? Pink : Soft, 1, new Vector2(0f, 0.5f));
-                SetText(_profFriendL2[i], Safe(f.Line2), Soft, 1, new Vector2(0f, 0.5f));
+                SetHint(_profFriendName[i], f.Known ? Safe(f.Name) : "???", f.Known ? Ink : Soft, 0f);
+                SetHint(_profFriendL1[i], Safe(f.Line1), f.Known ? Pink : Soft, 0f);
+                SetHint(_profFriendL2[i], Safe(f.Line2), Soft, 0f);
             }
 
             SetDim(0.78f);
@@ -188,6 +188,7 @@ namespace PixelAdventure.LifeSim
             float top = h * 0.5f, left = -w * 0.5f;
             float innerL = left + 0.7f, innerW = w - 1.4f;
             SetRect(_profPanel, 0f, 0f, w, h);
+            CloseAt(w * 0.5f, h * 0.5f);
             _profTitle.transform.localPosition = new Vector3(innerL, top - 0.75f, 0f);
             _profHeader.transform.localPosition = new Vector3(innerL + innerW, top - 0.75f, 0f);
             _profHint.transform.localPosition = new Vector3(0f, -top + 0.45f, 0f);
@@ -212,6 +213,9 @@ namespace PixelAdventure.LifeSim
                 _profFriendIcon[i].transform.localPosition = new Vector3(sl + 0.75f, slotY - slotH * 0.5f + 0.2f, 0f);
                 float tx = sl + (icon ? 1.45f : 0.3f);
                 float tw = slotW - (tx - sl) - 0.25f;
+                FitHint(_profFriendName[i], tw);   // teks kartu teman tidak meluber ke kartu sebelah
+                FitHint(_profFriendL1[i], tw);
+                FitHint(_profFriendL2[i], tw);
                 _profFriendName[i].transform.localPosition = new Vector3(tx, slotY + 0.56f, 0f);
                 if (_profFriends[i].Known)
                 {
@@ -245,6 +249,7 @@ namespace PixelAdventure.LifeSim
             SetSolid(_profAvatarFrame, lcx, photoCy, photo + 0.16f, photo + 0.16f);
             SetSolid(_profAvatarBg, lcx, photoCy, photo, photo);
             float avatarScale = photo / 2.0f;
+            _profAvatar.sprite = PixelArt.Get("lc_player_down_0");   // ikut pakaian yang sedang dipakai
             _profAvatar.transform.localScale = Vector3.one * avatarScale;
             _profAvatar.transform.localPosition = new Vector3(lcx, photoCy - photo * 0.5f + 0.12f, 0f);
 

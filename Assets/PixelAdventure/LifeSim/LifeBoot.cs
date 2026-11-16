@@ -25,16 +25,18 @@ namespace PixelAdventure.LifeSim
             }
 
             cam.orthographic = true;
-            cam.orthographicSize = 8f;
+            LifeGraphics.Load();
+            cam.orthographicSize = LifeGraphics.CameraSize;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.10f, 0.12f, 0.20f);
 
             if (cam.GetComponent<AudioListener>() == null)
                 cam.gameObject.AddComponent<AudioListener>();
 
-            var host = new GameObject("PULANG");
+            var host = new GameObject("Life Beyond Home");
             var game = host.AddComponent<PulangGame>();
             game.Boot(cam);
+            LifeGraphics.Apply(true);   // FPS, resolusi & mode layar sesuai pengaturan / perangkat
         }
     }
 }

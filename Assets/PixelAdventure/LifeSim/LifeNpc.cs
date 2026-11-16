@@ -11,6 +11,8 @@ namespace PixelAdventure.LifeSim
         SpriteRenderer _body;
         SpriteRenderer _shadow;
         SpriteRenderer _tag;
+        SpriteRenderer _badge;      // "!" misi sampingan baru, "?" tujuan misi sampingan
+        string _badgeText;
         Transform _bodyTransform;
         LifeWorld _wanderWorld;
         Vector2 _wanderOrigin;
@@ -24,6 +26,9 @@ namespace PixelAdventure.LifeSim
         float _time;
 
         static readonly string[] DirNames = { "down", "up", "left", "right" };
+        static readonly int[] WalkCycle = { 1, 0, 2, 0 };
+        int _frame;
+        float _walkAnim;
 
         public Vector2 Position => transform.position;
 
@@ -90,6 +95,31 @@ namespace PixelAdventure.LifeSim
             ApplySprite();
         }
 
+        /// <summary>Tanda di atas kepala: "!" (kuning) misi baru, "?" (biru) tujuan misi; null = sembunyikan.</summary>
+        public void SetBadge(string text)
+        {
+            if (text == _badgeText) return;
+            _badgeText = text;
+            if (string.IsNullOrEmpty(text))
+            {
+                if (_badge != null) _badge.gameObject.SetActive(false);
+                return;
+            }
+            if (_badge == null)
+            {
+                var go = new GameObject("Badge");
+                go.transform.SetParent(transform, false);
+                go.transform.localPosition = new Vector3(0f, 2.32f, 0f);
+                _badge = go.AddComponent<SpriteRenderer>();
+                _badge.sharedMaterial = PixelArt.SpriteMaterial;
+                _badge.enabled = _body != null && _body.enabled;
+            }
+            Color fill = text == "?" ? new Color(0.55f, 0.85f, 1f) : new Color(1f, 0.84f, 0.25f);
+            _badge.sprite = PixelFont.Render(text, fill, new Color(0.08f, 0.06f, 0.12f), 2, new Vector2(0.5f, 0.5f));
+            _badge.gameObject.SetActive(true);
+            ApplySprite();
+        }
+
         public void FaceDown()
         {
             _dir = 0;
@@ -105,11 +135,12 @@ namespace PixelAdventure.LifeSim
         void ApplySprite()
         {
             if (_body == null) return;
-            _body.sprite = PixelArt.Get("lc_" + Id + "_" + DirNames[_dir] + "_0");
+            _body.sprite = PixelArt.Get("lc_" + Id + "_" + DirNames[_dir] + "_" + _frame);
             int order = -Mathf.RoundToInt(transform.position.y * PixelArt.PPU);
             _body.sortingOrder = order;
             _shadow.sortingOrder = order - 1;
             _tag.sortingOrder = order + 1;
+            if (_badge != null) _badge.sortingOrder = order + 2;
         }
 
         void Update()
@@ -124,12 +155,15 @@ namespace PixelAdventure.LifeSim
                 _body.enabled = visible;
                 _shadow.enabled = visible;
                 _tag.enabled = visible;
+                if (_badge != null) _badge.enabled = visible;
             }
             if (!visible) return;
 
             if (_bodyTransform != null)
                 _bodyTransform.localPosition = new Vector3(0f,
                     Mathf.Sin(_time * 2.1f) * 0.008f, 0f);
+            if (_badge != null && _badge.gameObject.activeSelf)
+                _badge.transform.localPosition = new Vector3(0f, 2.32f + Mathf.Abs(Mathf.Sin(_time * 3.2f)) * 0.14f, 0f);
 
             // Keep the population still in menus, pause screens and loading transitions.
             if (_wanderWorld == null || PulangGame.Instance == null ||
@@ -150,23 +184,29 @@ namespace PixelAdventure.LifeSim
 
             Vector2 current = transform.position;
             Vector2 delta = _wanderTarget - current;
-            if (delta.sqrMagnitude < 0.04f)
+            // Berhenti saat pemain mendekat (agar mudah diajak bicara), atau saat sampai tujuan.
+            bool playerClose = PulangGame.Instance.PlayerNear(current, 2.2f);
+            if (delta.sqrMagnitude < 0.04f || playerClose)
             {
                 _hasWanderTarget = false;
-                _wanderPause = Random.Range(0.5f, 2.2f);
+                _wanderPause = playerClose ? 0.5f : Random.Range(1.5f, 5f);
+                if (_frame != 0) { _frame = 0; ApplySprite(); }
                 return;
             }
 
             Vector2 next = Vector2.MoveTowards(current, _wanderTarget, _wanderSpeed * dt);
-            if (_wanderWorld.CanStand(next.x, next.y))
+            if (_wanderWorld.CanWander(next))
             {
                 transform.position = new Vector3(next.x, next.y, 0f);
+                _walkAnim += dt;
+                _frame = WalkCycle[(int)(_walkAnim * 7f) % WalkCycle.Length];
                 FaceTowards(_wanderTarget);
             }
             else
             {
                 _hasWanderTarget = false;
                 _wanderPause = 0.3f;
+                if (_frame != 0) { _frame = 0; ApplySprite(); }
             }
         }
 
@@ -175,7 +215,7 @@ namespace PixelAdventure.LifeSim
             for (int attempt = 0; attempt < 8; attempt++)
             {
                 Vector2 candidate = _wanderOrigin + Random.insideUnitCircle * _wanderRadius;
-                if (!_wanderWorld.CanStand(candidate.x, candidate.y)) continue;
+                if (!_wanderWorld.CanWander(candidate)) continue;
                 _wanderTarget = candidate;
                 _hasWanderTarget = true;
                 return true;

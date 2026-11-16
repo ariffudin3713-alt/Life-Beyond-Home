@@ -14,7 +14,7 @@ namespace PixelAdventure.LifeSim
         public const float Height = LifeArt.MapH;
         const float PlayerRadius = 0.34f;
 
-        enum Kind { House, Shop, Cafe, Stall, Facade, Tower, Spot, Halte, Inn }
+        enum Kind { House, Shop, Cafe, Stall, Facade, Tower, Spot, Halte, Inn, Cart }
 
         struct Placement
         {
@@ -78,6 +78,7 @@ namespace PixelAdventure.LifeSim
 
             // ---------------- Pantai Cemara
             new Placement(LocationId.PantaiCemara, Kind.Spot, 48f, 44f),
+            new Placement(LocationId.TerminalPantai, Kind.Halte, 6f, 14.3f),   // di pasir, tepi utara jalan pantai (jauh dari laut)
 
             // ---------------- Penginapan (satu per wilayah, di lahan kosong tepi jalan)
             new Placement(LocationId.PenginapanDesa,    Kind.Inn, 75f, 36f),   // utara jalan desa, sebelum terminal
@@ -85,6 +86,22 @@ namespace PixelAdventure.LifeSim
             new Placement(LocationId.PenginapanCempaka, Kind.Inn, 36f, 20f),   // selatan jalan kampung
             new Placement(LocationId.PenginapanPasar,   Kind.Inn, 90.5f, 40f), // ujung timur deretan toko pasar
             new Placement(LocationId.PenginapanPantai,  Kind.Inn, 26f, 15.4f), // utara jalan pantai
+
+            // ---------------- Toko khusus (menggantikan beberapa "toko tutup" dekorasi)
+            new Placement(LocationId.DealerKendaraan, Kind.Shop, 38f, 8f),     // Kota selatan
+            new Placement(LocationId.TokoElektronik,  Kind.Shop, 72f, 8f),     // Kota selatan
+            new Placement(LocationId.TokoBuku,        Kind.Shop, 59f, 49f),    // Kota, dekat Alun-Alun
+            new Placement(LocationId.TokoPancing,     Kind.Shop, 56f, 16f),    // Pantai, utara jalan
+
+            // ---------------- Tempat ibadah (menggantikan mushola & ruko dekorasi di Kota)
+            new Placement(LocationId.MasjidKota, Kind.Facade, 38f, 59f),
+            new Placement(LocationId.GerejaKota, Kind.Facade, 59f, 58f),
+
+            // ---------------- Tempat makan khas Indonesia (gerobak / tenda)
+            new Placement(LocationId.GerobakBakso,    Kind.Cart, 74f, 56f),    // Alun-Alun Merdeka
+            new Placement(LocationId.Angkringan,      Kind.Cart, 78.5f, 43.6f),// Kampung, dekat lapangan
+            new Placement(LocationId.WarungPecelLele, Kind.Cart, 54f, 48f),    // Pasar, belakang los
+            new Placement(LocationId.KiosEsKelapa,    Kind.Cart, 30f, 30f),    // Pantai, di pasir
         };
 
         static readonly Dictionary<Region, string> GroundKeys = new Dictionary<Region, string>
@@ -97,7 +114,6 @@ namespace PixelAdventure.LifeSim
         };
 
         public readonly List<Rect> Obstacles = new List<Rect>();
-        readonly List<SpriteRenderer> _lampGlows = new List<SpriteRenderer>();
         readonly Dictionary<Region, Transform> _roots = new Dictionary<Region, Transform>();
         readonly Dictionary<Region, List<Rect>> _regionObstacles = new Dictionary<Region, List<Rect>>();
         readonly Dictionary<LocationId, Vector2> _spots = new Dictionary<LocationId, Vector2>();
@@ -148,6 +164,7 @@ namespace PixelAdventure.LifeSim
                 _build = root;
                 _buildRegion = r;
                 _buildObstacles = new List<Rect>();
+                _buildHaltes.Clear();
                 _regionObstacles[r] = _buildObstacles;
                 _locations[r] = new List<LocationId>();
 
@@ -155,8 +172,12 @@ namespace PixelAdventure.LifeSim
                 foreach (var p in Layout)
                     if (PulangWorld.Get(p.Id).Region == r) Place(p, r);
                 BuildScenery(r);
+                BuildEdgeSigns(r);
                 BuildDecor(r);
+                BuildCritters(r, root);
                 BuildStreet(r, root);
+                BuildFill(r);
+                BuildIndo(r, root);
                 root.gameObject.SetActive(false);
             }
             SetRegion(Region.DesaSukaMakmur);
@@ -182,7 +203,15 @@ namespace PixelAdventure.LifeSim
 
             // Papan nama menempel di dinding bangunan (tinggi & lebar mengikuti sprite),
             // jadi tidak menghalangi jalan, pintu, atau tokoh di depannya.
-            switch (p.Kind)
+            // Bangunan dengan fasad khusus (sekolah, rumah sakit, toko baju, dst.).
+            bool special = TrySpecialFacade(p.Id, out Facade f);
+            if (special)
+            {
+                Building(f.Sprite, x, y, 1f, f.W, f.H);
+                WallPlate(name, x, y, f.Plate, Mathf.Min(6.8f, f.W + 0.6f), style);
+                AddBuildingLights(x, y, f.W, f.LightH, f.Door, f.Window);
+            }
+            else switch (p.Kind)
             {
                 case Kind.House:
                     Building("lc_house", x, y, 1f, 6.8f, 5.9f);
@@ -208,12 +237,29 @@ namespace PixelAdventure.LifeSim
                     Building("lc_office_tower", x, y, 0.5f, 2.4f, 4.6f);
                     WallPlate(name, x, y, 1.3f, 3.6f, style);
                     break;
+                case Kind.Cart:
+                {
+                    // Gerobak / tenda: gambar sesuai tempat, penghalang rendah, papan nama melayang di atasnya.
+                    bool pecel = p.Id == LocationId.WarungPecelLele || p.Id == LocationId.PecelLeleKota;
+                    bool warkop = p.Id == LocationId.WarkopDesa;
+                    string sprite = p.Id == LocationId.GerobakBakso ? "lc_cart_bakso"
+                        : p.Id == LocationId.Angkringan ? "lc_angkringan"
+                        : pecel ? "lc_tent_pecel" : warkop ? "lc_warkop" : "lc_kiosk_kelapa";
+                    float cw = pecel ? 5.2f : warkop ? 4.0f : p.Id == LocationId.Angkringan ? 4.2f : 3.2f;
+                    float topH = pecel ? 3.75f : warkop ? 3.4f : p.Id == LocationId.Angkringan ? 3.5f : 3.1f;
+                    Building(sprite, x, y, 1f, cw, 1.1f);
+                    WallPlate(name, x, y, topH + 0.45f, 6f, PlateStyle.Toko);
+                    spot = new Vector2(x, y - 0.9f);
+                    AddLight(x, y + topH - 0.6f, 2.2f, 2.0f, LampWarm, 0.6f);   // lampu warung
+                    break;
+                }
                 case Kind.Inn:
                     Building("lc_inn", x, y, 1f, 7.0f, 6.6f);
                     WallPlate(name, x, y, 4.75f, 6.8f, style);
                     break;
                 case Kind.Halte:
                     Make("lc_bus_stop", x, y, "Halte", Order(y));
+                    _buildHaltes.Add(HalteRect(x, y));
                     AddObstacle(x - 0.9f, y, 1.8f, 0.6f);
                     WallPlate(name, x, y, 3.25f, 4.8f, PlateStyle.Halte);
                     spot = new Vector2(x + 1.4f, y - 0.3f);
@@ -224,6 +270,19 @@ namespace PixelAdventure.LifeSim
                     Vector2 at = SpotSignPos.TryGetValue(p.Id, out Vector2 custom) ? custom : spot + new Vector2(-3f, 0.6f);
                     PostSign(name, at.x, at.y, StreetNames.Contains(p.Id) ? PlateStyle.Jalan : PlateStyle.Tempat);
                     break;
+            }
+
+            // Jendela & pintu bangunan menyala di malam hari.
+            if (!special) switch (p.Kind)
+            {
+                case Kind.House: AddBuildingLights(x, y, 6.8f, 5.9f); break;
+                case Kind.Shop: AddBuildingLights(x, y, 6.4f, 5.3f, true, 0.4f); break;
+                case Kind.Cafe: AddBuildingLights(x, y, 7.8f, 5.9f, true, 0.45f); break;
+                case Kind.Inn: AddBuildingLights(x, y, 7.0f, 6.6f, true, 0.42f); break;
+                case Kind.Facade: AddBuildingLights(x, y, 4.6f, 4.4f, true, 0.28f); break;
+                case Kind.Tower: AddBuildingLights(x, y, 2.4f, 4.6f, false, 0.4f); break;
+                case Kind.Stall: AddLight(x, y + 2.6f, 2.0f, 1.8f, LampWarm, 0.5f, 0.15f); break;   // lampu petromaks kios
+                case Kind.Halte: AddLight(x, y + 2.9f, 2.0f, 2.0f, LampWarm, 0.55f); break;
             }
 
             _spots[p.Id] = spot;
@@ -285,7 +344,7 @@ namespace PixelAdventure.LifeSim
                     AddObstacle(78.4f, 57.7f, 3.2f, 1.7f);
                     Make("lc_bench", 14f, 56f, "Bangku", Order(56f));
                     Make("lc_bench", 86f, 54f, "BangkuAlun", Order(54f));
-                    Make("lc_flowers", 22f, 60f, "Bunga", Order(60f));
+                    BuildPark();
                     break;
 
                 case Region.KampungCempaka:
@@ -325,8 +384,7 @@ namespace PixelAdventure.LifeSim
                     }
                     Make("lc_beach_umbrella", 36f, 24f, "Payung", Order(24f));
                     Make("lc_beach_umbrella", 72f, 22f, "Payung2", Order(22f));
-                    Make("lc_bus_stop", 6f, 14.3f, "Halte", Order(14.3f));   // di pasir, tepi utara jalan
-                    WallPlate("Halte Pantai", 6f, 14.3f, 3.25f, 4.8f, PlateStyle.Halte);
+                    // Halte Pantai kini lokasi TerminalPantai (lihat Layout): bisa naik bus, tidak lagi hiasan.
                     break;
             }
         }
@@ -347,10 +405,8 @@ namespace PixelAdventure.LifeSim
                 float x = xy[i], y = xy[i + 1];
                 Make("lc_lamp", x, y, "Lampu", Order(y));
                 AddObstacle(x - 0.16f, y, 0.32f, 0.32f);
-                var glow = Make("lc_glow", x, y + 3.45f, "Cahaya", Order(y) + 1);
-                glow.color = new Color(1f, 1f, 1f, 0f);
-                glow.transform.localScale = Vector3.one * 2.6f;
-                _lampGlows.Add(glow);
+                AddLight(x, y + 3.45f, 2.8f, 2.8f, LampWarm, 0.9f);          // kepala lampu
+                AddLight(x, y + 0.25f, 3.6f, 1.7f, LampWarm, 0.42f);         // genangan cahaya di tanah
             }
         }
 
@@ -429,8 +485,8 @@ namespace PixelAdventure.LifeSim
 
         readonly List<SignLabel> _signs = new List<SignLabel>();
         Region _buildRegion;
-        const int CharPx = 6;     // lebar satu huruf PixelFont skala 1
-        const int LinePx = 9;     // tinggi satu baris termasuk garis tepi
+        const int CharPx = PixelFont.CellPx;   // lebar satu huruf PixelFont skala 1 (termasuk jarak)
+        const int LinePx = 10;    // tinggi satu baris: huruf + garis tepi (9) + celah 1 piksel
 
         /// <summary>Papan nama yang menempel di dinding, setinggi <paramref name="height"/> dari dasar bangunan.</summary>
         void WallPlate(string title, float x, float baseY, float height, float maxWidth, PlateStyle style)
@@ -440,6 +496,67 @@ namespace PixelAdventure.LifeSim
         }
 
         /// <summary>Papan bertiang untuk tempat terbuka dan nama jalan.</summary>
+        /// <summary>Papan jalan di ujung kiri/kanan jalan utama: menunjuk wilayah sebelah (bisa dicapai jalan kaki).</summary>
+        void BuildEdgeSigns(Region r)
+        {
+            if (!PulangWorld.EdgeRoadTop.TryGetValue(r, out float top)) return;
+            float y = top + 0.9f;
+            if (PulangWorld.EdgeLeft.TryGetValue(r, out Region l))
+            {
+                string title = "< " + PulangWorld.RegionNames[l];
+                PostSign(title, FreeEdgeSignX(title, 3.2f, y, 1f), y, PlateStyle.Jalan);
+            }
+            if (PulangWorld.EdgeRight.TryGetValue(r, out Region rr))
+            {
+                string title = PulangWorld.RegionNames[rr] + " >";
+                PostSign(title, FreeEdgeSignX(title, Width - 3.2f, y, -1f), y, PlateStyle.Jalan);
+            }
+        }
+
+        // ------------------------------------------------------------------ halte & papan ujung jalan
+
+        /// <summary>Kotak tampilan halte di wilayah yang sedang dibangun (atap + papan nama di atasnya).</summary>
+        readonly List<Rect> _buildHaltes = new List<Rect>();
+
+        /// <summary>Gambar halte 80x64 px (5 x 4 unit) berpivot di tengah bawah, ditambah papan nama di atap.</summary>
+        static Rect HalteRect(float x, float y) => new Rect(x - 2.6f, y, 5.2f, 5.6f);
+
+        /// <summary>Lebar papan bertiang (unit) untuk judul ini, sama dengan perhitungan CreateSign.</summary>
+        float SignWidth(string title, float maxWidth = 5.2f)
+        {
+            int maxChars = Mathf.Max(6, Mathf.FloorToInt((maxWidth * PixelArt.PPU - 8f) / CharPx));
+            int textW = 0;
+            foreach (string line in WrapSign(title.ToUpperInvariant(), maxChars)) textW = Mathf.Max(textW, line.Length * CharPx + 2);
+            return (textW + 8) / PixelArt.PPU;
+        }
+
+        /// <summary>
+        /// Posisi x papan ujung jalan yang tidak tertutup halte atau benda lain yang berdiri di depannya.
+        /// Mulai dari posisi biasa di dekat ujung peta, lalu bergeser ke dalam (arah <paramref name="inward"/>)
+        /// sampai bebas. Benda "di depan" = alasnya sedikit lebih rendah dari kaki papan sehingga digambar
+        /// di atas papan; benda di belakang (alas lebih tinggi) tidak menutupi papan.
+        /// </summary>
+        float FreeEdgeSignX(string title, float startX, float y, float inward)
+        {
+            float half = SignWidth(title) * 0.5f + 0.25f;
+            for (float x = startX; Mathf.Abs(x - startX) <= 18f; x += inward * 0.5f)
+            {
+                if (x - half < 0.3f || x + half > Width - 0.3f) continue;   // papan tidak boleh keluar peta
+                if (!SignBlocked(x, half, y)) return x;
+            }
+            return startX;
+        }
+
+        bool SignBlocked(float x, float half, float y)
+        {
+            float l = x - half, r = x + half;
+            foreach (var h in _buildHaltes)
+                if (h.xMax > l && h.xMin < r && h.yMin < y + 0.6f && h.yMax > y) return true;
+            foreach (var o in _buildObstacles)
+                if (o.xMax > l && o.xMin < r && o.yMin < y + 0.3f && o.yMin > y - 6f) return true;
+            return false;
+        }
+
         void PostSign(string title, float x, float y, PlateStyle style)
         {
             AddObstacle(x - 0.12f, y, 0.24f, 0.2f);
@@ -549,16 +666,5 @@ namespace PixelAdventure.LifeSim
             return true;
         }
 
-        public void SetNight(float amount)
-        {
-            float lit = Mathf.Clamp01(amount) * 0.85f;
-            for (int i = 0; i < _lampGlows.Count; i++)
-            {
-                if (_lampGlows[i] == null || !_lampGlows[i].gameObject.activeInHierarchy) continue;
-                Color c = _lampGlows[i].color;
-                c.a = lit;
-                _lampGlows[i].color = c;
-            }
-        }
     }
 }

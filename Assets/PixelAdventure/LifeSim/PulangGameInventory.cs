@@ -18,8 +18,8 @@ namespace PixelAdventure.LifeSim
     public partial class PulangGame
     {
         static readonly ItemKind?[] InventoryTabs =
-            { null, ItemKind.Makanan, ItemKind.Hadiah, ItemKind.Perlengkapan, ItemKind.Misi };
-        static readonly string[] InventoryTabNames = { "SEMUA", "MAKANAN", "HADIAH", "PERLENGKAPAN", "MISI" };
+            { null, ItemKind.Makanan, ItemKind.Hadiah, ItemKind.Perlengkapan, ItemKind.Pakaian, ItemKind.Kendaraan, ItemKind.Misi };
+        static readonly string[] InventoryTabNames = { "SEMUA", "MAKANAN", "HADIAH", "ALAT", "PAKAIAN", "KENDARAAN", "MISI" };
 
         int _invTab, _invIndex;
         string _invMessage;
@@ -73,6 +73,7 @@ namespace PixelAdventure.LifeSim
             if (D.state > StoryState.Ch5KirimanIbu) SetItemCount("oleh_oleh", 0);
 
             // Tas & barang pribadi tetap disimpan sebagai kenangan dari rumah (hanya untuk simpanan baru).
+            _questItemsBaseline = true;
         }
 
         bool ObjectiveDone(StoryState state, StoryEvent ev, string key)
@@ -96,8 +97,33 @@ namespace PixelAdventure.LifeSim
         {
             int have = 0;
             foreach (string s in D.inventory) if (s == id) have++;
+            int before = have;
             while (have < count) { D.inventory.Add(id); have++; }
             while (have > count) { D.inventory.Remove(id); have--; }
+
+            // Pemberitahuan saat barang misi bertambah (tidak saat memuat simpanan).
+            var it = PulangItems.Get(id);
+            if (_questItemsBaseline && it != null && it.Quest && count > before)
+            {
+                GameAudio.Play("pickup", 0.55f);
+                _hud.ShowToast(("BARANG MISI DIDAPAT: " + it.Name + (count > 1 ? " x" + count : "") + " - LIHAT INVENTORI (I)").ToUpperInvariant());
+            }
+        }
+
+        /// <summary>False sampai sinkronisasi pertama setelah memulai/memuat game (agar tidak ada notifikasi palsu).</summary>
+        bool _questItemsBaseline;
+
+        /// <summary>Ikon khusus barang misi (tas, kunci, buku, paket, surat, ...).</summary>
+        static string ItemIcon(ItemDef it) =>
+            it.Quest && PixelArt.Sprites.ContainsKey("lc_qi_" + it.Id) ? "lc_qi_" + it.Id : null;
+
+        /// <summary>Nama misi yang sedang memakai barang ini (kosong bila hanya kenang-kenangan).</summary>
+        string QuestTitleFor(string id)
+        {
+            if (_story.Data == null || id == "tas" || id == "barang_pribadi" || id == "kunci_kost") return null;
+            string side = SideQuestTitleForItem(id);
+            if (side != null) return "Sampingan: " + side;
+            return _story.Current.Title;
         }
 
         // ================================================================== layar inventori
@@ -132,7 +158,7 @@ namespace PixelAdventure.LifeSim
         }
 
         static int KindOrder(ItemKind k) =>
-            k == ItemKind.Misi ? 0 : k == ItemKind.Makanan ? 1 : k == ItemKind.Hadiah ? 2 : 3;
+            k == ItemKind.Misi ? 0 : k == ItemKind.Kendaraan ? 1 : k == ItemKind.Pakaian ? 2 : k == ItemKind.Makanan ? 3 : k == ItemKind.Hadiah ? 4 : 5;
 
         void RefreshInventory()
         {
@@ -142,13 +168,23 @@ namespace PixelAdventure.LifeSim
             foreach (var r in rows) entries.Add(EntryFor(r.Key, r.Value));
 
             string header = Rp(D.money) + "   ENERGI " + D.energy + "/100";
-            _hud.ShowInventory(InventoryTabNames, _invTab, entries, _invIndex, header, _invMessage);
+            // Tab MISI menampilkan jumlah barang misi yang dibawa, mis. "MISI (3)".
+            int quest = 0;
+            foreach (string id in D.inventory) { var qi = PulangItems.Get(id); if (qi != null && qi.Quest) quest++; }
+            var tabs = (string[])InventoryTabNames.Clone();
+            if (quest > 0) tabs[tabs.Length - 1] = "MISI (" + quest + ")";
+            _hud.ShowInventory(tabs, _invTab, entries, _invIndex, header, _invMessage);
         }
 
         InvEntry EntryFor(ItemDef it, int count)
         {
             var e = new InvEntry { Name = it.Name, Count = count, Kind = it.Kind, Desc = it.Desc,
-                Icon = it.Id == "kunci_kost" ? "lc_item_key" : null };
+                Icon = ItemIcon(it) ?? (it.Id == "kunci_kost" ? "lc_item_key" : null) };
+            if (it.Kind == ItemKind.Misi)
+            {
+                string title = QuestTitleFor(it.Id);
+                if (!string.IsNullOrEmpty(title)) e.Desc = "DIPAKAI UNTUK MISI \"" + title + "\". " + it.Desc;
+            }
             switch (it.Kind)
             {
                 case ItemKind.Makanan:
@@ -164,6 +200,26 @@ namespace PixelAdventure.LifeSim
                     e.Effect = "SYARAT PEKERJAAN - TIDAK HABIS DIPAKAI";
                     e.Action = " ";
                     break;
+                case ItemKind.Pakaian:
+                {
+                    bool worn = D.outfit == it.Id;
+                    e.Icon = LifeArt.OutfitIcon(it.Outfit);
+                    e.Effect = worn ? "SEDANG DIPAKAI" : "BELI LAGI MODEL LAIN DI TOKO PAKAIAN";
+                    e.Action = worn ? "E - LEPAS (BAJU HARIAN)" : "E - PAKAI";
+                    e.Usable = true;
+                    break;
+                }
+                case ItemKind.Kendaraan:
+                {
+                    bool riding = D.vehicle == it.Id;
+                    e.Icon = "lc_item_vehicle_" + it.Id;
+                    e.Effect = "KECEPATAN x" + it.Speed.ToString("0.##") +
+                               (it.Engine ? "   BENSIN " + Rp(it.Fuel) + "/PERJALANAN" : "   TANPA BENSIN");
+                    e.Action = riding ? "E / V - TURUN & SIMPAN" : "E / V - PANGGIL & NAIKI";
+                    e.Usable = true;
+                    if (riding) e.Desc = "SEDANG DIKENDARAI. " + it.Desc;
+                    break;
+                }
                 default:
                     e.Effect = QuestUse(it.Id);
                     e.Action = "BARANG MISI - TIDAK BISA DIBUANG";
@@ -190,6 +246,11 @@ namespace PixelAdventure.LifeSim
                 case "oleh_oleh": return "KIRIM LEWAT PAK HADI DI TERMINAL JOGOKERTO";
                 case "buku_catatan_nabila": return "BICARA DENGAN NABILA UNTUK MENYERAHKAN";
                 case "barang_bawaan": return "BAWA PULANG KE DESA SUKA MAKMUR";
+                case "rantang_siti": return "BICARA DENGAN PAK SLAMET UNTUK MENYERAHKAN";
+                case "suku_cadang": return "BICARA DENGAN PAK HADI UNTUK MENYERAHKAN";
+                case "sayur_pesanan": return "BICARA DENGAN RIKO DI CAFE SENJA";
+                case "titipan_rukmini": return "BICARA DENGAN BU SARI UNTUK MENYERAHKAN";
+                case "obat_ternak": return "BICARA DENGAN PAK KARMAN UNTUK MENYERAHKAN";
                 default: return "KENANGAN DARI RUMAH";
             }
         }
@@ -205,6 +266,35 @@ namespace PixelAdventure.LifeSim
             }
 
             var rows = InventoryRows();
+
+            // Kursor: klik tab = ganti kategori; arahkan ke barang = pilih; klik barang terpilih = pakai.
+            if (_hud.PointerClick(UiHit.InvTab, out int tab) && tab != _invTab && tab < InventoryTabs.Length)
+            {
+                _invTab = tab;
+                _invIndex = 0;
+                _invMessage = null;
+                GameAudio.Play("click", 0.35f);
+                RefreshInventory();
+                return;
+            }
+            bool useClick = false;
+            if (rows.Count > 0)
+            {
+                int pick = -1;
+                if (_hud.PointerClick(UiHit.InvRow, out int clickRow)) { useClick = clickRow == _invIndex; pick = clickRow; }
+                else if (_hud.PointerHover(UiHit.InvRow, out int hoverRow)) pick = hoverRow;
+                float wheel = LifeInput.ScrollWheel;
+                if (pick < 0 && wheel != 0f) pick = Mathf.Clamp(_invIndex + (wheel > 0f ? -1 : 1), 0, rows.Count - 1);
+                if (pick >= 0 && pick < rows.Count && pick != _invIndex)
+                {
+                    _invIndex = pick;
+                    _invMessage = null;
+                    GameAudio.Play("click", 0.25f);
+                    RefreshInventory();
+                    return;
+                }
+            }
+
             if (LifeInput.LeftPressed || LifeInput.RightPressed)
             {
                 int dir = LifeInput.LeftPressed ? -1 : 1;
@@ -224,13 +314,23 @@ namespace PixelAdventure.LifeSim
                 RefreshInventory();
                 return;
             }
-            if (LifeInput.InteractPressed && rows.Count > 0)
+            if ((LifeInput.InteractPressed || LifeInput.VehiclePressed || useClick) && rows.Count > 0)
             {
                 var it = rows[_invIndex].Key;
+                if (it.Kind == ItemKind.Kendaraan)
+                {
+                    UseVehicleFromBag(it);
+                    return;
+                }
+                if (!LifeInput.InteractPressed && !useClick) return;
                 if (it.Kind == ItemKind.Makanan)
                 {
                     EatFromBag(it.Id);
                     _invMessage = ("MAKAN " + it.Name + " - ENERGI " + D.energy + "/100").ToUpperInvariant();
+                }
+                else if (it.Kind == ItemKind.Pakaian)
+                {
+                    _invMessage = ToggleOutfit(it);
                 }
                 else
                 {
@@ -241,6 +341,32 @@ namespace PixelAdventure.LifeSim
                 }
                 RefreshInventory();
             }
+        }
+
+        /// <summary>
+        /// Kendaraan di inventori: turun & simpan bila sedang dinaiki, atau panggil lalu langsung
+        /// kembali ke permainan agar pemain melihat kendaraannya muncul.
+        /// </summary>
+        void UseVehicleFromBag(ItemDef it)
+        {
+            if (D.vehicle == it.Id)
+            {
+                ParkVehicle();
+                _invMessage = (it.Name + " disimpan ke inventori").ToUpperInvariant();
+                RefreshInventory();
+                return;
+            }
+            if (!CanSummonVehicle(out string reason))
+            {
+                GameAudio.Play("error", 0.4f);
+                _invMessage = reason;
+                RefreshInventory();
+                return;
+            }
+            _returnToTablet = false;
+            _hud.HideInventory();
+            CloseSubScreen();
+            SummonVehicle(it);
         }
 
         /// <summary>Tutup layar (tugas/jurnal/inventori): kembali ke tablet bila dibuka dari sana.</summary>

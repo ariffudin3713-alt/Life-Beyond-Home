@@ -9,6 +9,15 @@ namespace PixelAdventure
         const int GlyphW = 5;
         const int GlyphH = 7;
 
+        /// <summary>
+        /// Lebar satu sel huruf (piksel, skala 1): 5 piksel huruf + 2 piksel jarak.
+        /// Dulu 6 (jarak 1 piksel tertutup garis tepi sehingga huruf tampak menempel).
+        /// </summary>
+        public const int CellPx = 7;
+
+        /// <summary>Lebar satu huruf skala 1 dalam unit dunia (dipakai semua perhitungan lebar teks).</summary>
+        public const float CharW = CellPx / PixelArt.PPU;
+
         static readonly Dictionary<char, string[]> Glyphs = new Dictionary<char, string[]>();
         static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
 
@@ -30,7 +39,7 @@ namespace PixelAdventure
             if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
 
             int pad = 1;
-            int cell = 6 * scale;
+            int cell = CellPx * scale;
             int contentW = text.Length * cell;
             int texW = contentW + pad * 2;
             int texH = GlyphH * scale + pad * 2;
@@ -164,6 +173,7 @@ namespace PixelAdventure
             G('★', "..#..", "..#..", "#####", ".###.", ".###.", "##.##", "#...#");
             // Ikon daftar tugas: segitiga (bisa), centang (selesai), gembok (terkunci).
             G('▶', "#....", "##...", "###..", "####.", "###..", "##...", "#....");
+            G('◀', "....#", "...##", "..###", ".####", "..###", "...##", "....#");
             G('✓', ".....", "....#", "...##", "#.##.", "###..", ".#...", ".....");
             G('▲', ".....", "..#..", ".###.", "#####", ".....", ".....", ".....");
             G('▼', ".....", ".....", ".....", "#####", ".###.", "..#..", ".....");

@@ -18,8 +18,8 @@ namespace PixelAdventure.LifeSim
     /// </summary>
     public partial class LifeHud
     {
-        const float TaskCharW = 6f / 16f;     // lebar satu huruf PixelFont skala 1
-        const float TaskLineStep = 0.44f;
+        const float TaskCharW = PixelFont.CharW;     // lebar satu huruf PixelFont skala 1
+        const float TaskLineStep = 0.62f;   // dulu 0,44: baris tugas saling menimpa
         const float TaskItemGap = 0.75f;      // jarak antar misi (garis pemisah di tengahnya)
         const float TaskScrollSpeed = 9f;     // satuan per detik saat W/S ditahan
 
@@ -69,7 +69,7 @@ namespace PixelAdventure.LifeSim
             _taskBarBg = Solid(_taskGroup, "ProgressBg", new Color(0.08f, 0.06f, 0.11f, 1f), 4012);
             _taskBarFill = Solid(_taskGroup, "ProgressFill", TaskGreen, 4013);
             _taskProgress = Text(_taskGroup, "Progress", " ", 1, Ink, new Vector2(0f, 0.5f), 4013);
-            _taskHint = Text(_taskGroup, "Hint", "A/D - PILIH KARTU   W/S - GULIR   T/ESC - TUTUP", 1, Gold,
+            _taskHint = Text(_taskGroup, "Hint", "A/D / KLIK - PILIH KARTU   W/S / RODA - GULIR   T/ESC - TUTUP", 1, Gold,
                 new Vector2(0.5f, 0.5f), 4013);
 
             _taskCards[0] = MakeCard("BISA DIKERJAKAN", '▶', TaskGreen, Ink);
@@ -133,6 +133,10 @@ namespace PixelAdventure.LifeSim
         }
 
         /// <summary>Pindah kartu yang dipilih (-1 kiri, +1 kanan).</summary>
+        public void FocusTaskCardAt(int index) { _taskFocus = Mathf.Clamp(index, 0, 2); }
+
+        public int TaskFocus => _taskFocus;
+
         public void FocusTaskCard(int delta)
         {
             _taskFocus = (_taskFocus + delta + 3) % 3;
@@ -157,6 +161,7 @@ namespace PixelAdventure.LifeSim
             float h = halfH * 2f - 0.8f;
             float top = h * 0.5f;
             SetRect(_taskPanel, 0f, 0f, w, h);
+            CloseAt(w * 0.5f, h * 0.5f);
 
             _taskTitle.transform.localPosition = new Vector3(0f, top - 0.72f, 0f);
             _taskSub.transform.localPosition = new Vector3(0f, top - 1.45f, 0f);
@@ -171,6 +176,8 @@ namespace PixelAdventure.LifeSim
             _taskProgress.transform.localPosition = new Vector3(barL + barW + 0.35f, barY, 0f);
 
             _taskHint.transform.localPosition = new Vector3(0f, -top + 0.45f, 0f);
+            SetHint(_taskHint, "A/D / KLIK - PILIH KARTU   W/S / RODA - GULIR   T/ESC - TUTUP", Gold);
+            FitHint(_taskHint, w - 1f);
 
             // Tiga kartu.
             float gap = 0.35f;
@@ -192,6 +199,7 @@ namespace PixelAdventure.LifeSim
                 c.Focus.gameObject.SetActive(focused);
                 if (focused) SetSolid(c.Focus, cx, cardBottom + ch * 0.5f, cw + 0.16f, ch + 0.16f);
                 SetRect(c.Panel, cx, cardBottom + ch * 0.5f, cw, ch);
+                Hit(UiHit.TaskCard, i, RectAt(cx, cardBottom + ch * 0.5f, cw, ch));
                 SetSolid(c.Bar, cx, cardTop - 0.48f, cw - 0.36f, 0.62f);
                 c.Header.transform.localPosition = new Vector3(cx - cw * 0.5f + 0.38f, cardTop - 0.48f, 0f);
                 c.Count.transform.localPosition = new Vector3(cx + cw * 0.5f - 0.38f, cardTop - 0.48f, 0f);
@@ -283,7 +291,7 @@ namespace PixelAdventure.LifeSim
         /// <summary>Tempatkan entri sesuai gulir; yang keluar area isi disembunyikan.</summary>
         void PlaceEntries(TaskCard c, float viewTop, float viewBottom, float scroll)
         {
-            const float halfLine = 0.2f;
+            const float halfLine = 0.28f;
             foreach (var e in c.Entries)
             {
                 float y = viewTop + e.Y + scroll;

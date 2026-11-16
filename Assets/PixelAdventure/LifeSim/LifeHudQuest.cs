@@ -17,7 +17,8 @@ namespace PixelAdventure.LifeSim
 
     /// <summary>
     /// Penunjuk arah misi:
-    /// - panah yang mengelilingi pemain menunjuk tujuan terdekat;
+    /// - arah ke tujuan terdekat ditampilkan di minimap (LifeHudMinimap.cs),
+    ///   bukan di sekitar karakter, agar tidak mengganggu;
     /// - setiap tujuan di luar layar mendapat panah di tepi layar (nama + jarak);
     /// - setiap tujuan yang terlihat mendapat penanda memantul di atasnya (nama + jarak).
     /// </summary>
@@ -29,20 +30,14 @@ namespace PixelAdventure.LifeSim
         static readonly Color JobArrowTint = new Color(0.60f, 0.90f, 1f);
 
         Transform _questGroup;
-        SpriteRenderer _questArrow, _questDist;
         readonly SpriteRenderer[] _questMarks = new SpriteRenderer[QuestMax];
         readonly SpriteRenderer[] _questLabels = new SpriteRenderer[QuestMax];
         readonly string[] _questLabelCache = new string[QuestMax];
         readonly List<QuestGoal> _questGoals = new List<QuestGoal>();
-        int _lastQuestDist = -1;
 
         void BuildQuestCompass()
         {
             _questGroup = Group("QuestCompass");
-            _questArrow = Make(_questGroup, PixelArt.Get("lc_icon_direction"), "QuestArrow", 3985);
-            _questArrow.transform.localScale = Vector3.one * 1.1f;
-            _questDist = Text(_questGroup, "QuestDist", " ", 1, Gold, new Vector2(0.5f, 0.5f), 3986);
-
             for (int i = 0; i < QuestMax; i++)
             {
                 _questMarks[i] = Make(_questGroup, PixelArt.Get("lc_icon_direction"), "QuestMark" + i, 3985);
@@ -64,6 +59,26 @@ namespace PixelAdventure.LifeSim
                 _questGoals.Add(goals[i]);
         }
 
+        /// <summary>
+        /// Tujuan terdekat dari pemain (tempat kerja hanya dipakai bila tidak ada tujuan misi).
+        /// Mengembalikan -1 bila tidak ada tujuan.
+        /// </summary>
+        int NearestQuestGoal(out float distance)
+        {
+            bool anyQuest = false;
+            for (int i = 0; i < _questGoals.Count; i++) anyQuest |= !_questGoals[i].IsJob;
+            int nearest = -1;
+            float best = float.MaxValue;
+            for (int i = 0; i < _questGoals.Count; i++)
+            {
+                if (anyQuest && _questGoals[i].IsJob) continue;
+                float d = (_questGoals[i].Position - _miniPlayerPos).sqrMagnitude;
+                if (d < best) { best = d; nearest = i; }
+            }
+            distance = nearest >= 0 ? Mathf.Sqrt(best) : 0f;
+            return nearest;
+        }
+
         static void Show(SpriteRenderer sr, bool on)
         {
             if (sr.gameObject.activeSelf != on) sr.gameObject.SetActive(on);
@@ -81,48 +96,16 @@ namespace PixelAdventure.LifeSim
                         && !TasksVisible && !InventoryVisible && !TabletVisible && !ProfileVisible && !GuideVisible
                         && !(_loadingGroup != null && _loadingGroup.gameObject.activeSelf);
 
-            Vector2 cam = _cam.transform.position;
-            Vector2 center = _miniPlayerPos + new Vector2(0f, 0.75f) - cam;
             float bob = Mathf.Sin(_time * 5f) * 0.12f;
 
-            // ---------------- panah di sekitar pemain -> tujuan misi terdekat
-            // (tempat kerja hanya dipakai bila tidak ada tujuan misi)
-            bool anyQuest = false;
-            for (int i = 0; i < _questGoals.Count; i++) anyQuest |= !_questGoals[i].IsJob;
-            int nearest = -1;
-            float best = float.MaxValue;
-            for (int i = 0; i < _questGoals.Count; i++)
-            {
-                if (anyQuest && _questGoals[i].IsJob) continue;
-                float d = (_questGoals[i].Position - _miniPlayerPos).sqrMagnitude;
-                if (d < best) { best = d; nearest = i; }
-            }
-            float nearDist = nearest >= 0 ? Mathf.Sqrt(best) : 0f;
-            bool orbit = show && nearest >= 0 && nearDist > 1.6f;
-            Show(_questArrow, orbit);
-            Show(_questDist, orbit);
-            if (orbit)
-            {
-                Vector2 dir = (_questGoals[nearest].Position - _miniPlayerPos) / nearDist;
-                Vector2 p = center + dir * (1.75f + bob);
-                _questArrow.transform.localPosition = new Vector3(p.x, p.y, 0f);
-                _questArrow.transform.localRotation =
-                    Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f);
-                int meters = Mathf.RoundToInt(nearDist);
-                if (meters != _lastQuestDist)
-                {
-                    _lastQuestDist = meters;
-                    SetText(_questDist, meters + " M", Gold, 1, new Vector2(0.5f, 0.5f));
-                }
-                Vector2 q = center + dir * 2.85f;
-                _questDist.transform.localPosition = new Vector3(q.x, q.y, 0f);
-            }
+            // (Panah di sekitar pemain dipindah ke minimap: lihat LayoutMiniGuide.)
 
             // ---------------- penanda untuk setiap tujuan misi
             // Area aman: di bawah panel status atas, di atas teks prompt bawah.
             float minX = -halfW + 0.9f, maxX = halfW - 0.9f;
-            float minY = -halfH + 1.45f, maxY = halfH - 3.75f;
+            float minY = -halfH + 1.45f, maxY = halfH - 5.4f;   // di bawah panel status kiri atas (tinggi 4,75)
             float miniRight = _miniEdgeRight + 0.6f, miniTop = _miniEdgeTop + 0.6f; // kotak minimap kiri bawah
+            float toolLeft = _toolEdgeLeft - 0.6f, toolTop = _toolEdgeTop + 0.6f;   // tombol PANDUAN + bilah kanan bawah
 
             for (int i = 0; i < QuestMax; i++)
             {
@@ -145,9 +128,10 @@ namespace PixelAdventure.LifeSim
                         new Vector2(0.5f, 0.5f));
                 }
                 // Posisi penanda: memantul di atas tujuan.
-                Vector2 t = _questGoals[i].Position - cam + new Vector2(0f, 2.0f + bob);
+                Vector2 t = WorldToHud(_questGoals[i].Position + new Vector2(0f, 2.0f + bob));
                 bool inMini = t.x < miniRight && t.y < miniTop;
-                bool onScreen = t.x > minX && t.x < maxX && t.y > minY && t.y < maxY && !inMini;
+                bool inTools = t.x > toolLeft && t.y < toolTop;
+                bool onScreen = t.x > minX && t.x < maxX && t.y > minY && t.y < maxY && !inMini && !inTools;
 
                 // Lokasi pekerjaan yang terlihat memakai logo bintang; selain itu panah.
                 bool star = job && onScreen;
@@ -175,6 +159,7 @@ namespace PixelAdventure.LifeSim
                     float sy = dir.y > 0f ? (maxY - from.y) / dir.y : dir.y < 0f ? (minY - from.y) / dir.y : float.MaxValue;
                     Vector2 e = from + dir * Mathf.Min(1f, Mathf.Min(sx, sy));
                     if (e.x < miniRight && e.y < miniTop) e.y = miniTop;
+                    if (e.x > toolLeft && e.y < toolTop) e.y = toolTop;
                     Vector2 nd = dir.normalized;
                     e -= nd * bob; // denyut kecil ke arah tujuan
                     mark.localPosition = new Vector3(e.x, e.y, 0f);

@@ -37,6 +37,21 @@ namespace PixelAdventure.LifeSim
             c.Set(8, 13, PixelArt.Hex("e9e2c9"));
             Add(c, Center, "app_phone");
 
+            c = Icon();                                       // KONTAK: kartu nama berpotret
+            Outlined(c, 1, 3, 14, 10, PixelArt.Hex("fff1d6"), IconInk);
+            c.Disc(5f, 9f, 2f, PixelArt.Hex("f2c5a0"));
+            c.Rect(3, 4, 5, 3, PixelArt.Hex("c0566e"));
+            c.Rect(9, 9, 5, 1, PixelArt.Hex("8a9098")); c.Rect(9, 7, 4, 1, PixelArt.Hex("8a9098")); c.Rect(9, 5, 5, 1, PixelArt.Hex("8a9098"));
+            Add(c, Center, "app_contacts");
+
+            c = Icon();                                       // PESAN: dua gelembung obrolan
+            Outlined(c, 1, 6, 10, 8, PixelArt.Hex("fff1d6"), IconInk);
+            c.Rect(3, 5, 2, 2, IconInk); c.Rect(3, 5, 1, 1, PixelArt.Hex("fff1d6"));
+            c.Rect(3, 10, 6, 1, PixelArt.Hex("8a9098")); c.Rect(3, 8, 4, 1, PixelArt.Hex("8a9098"));
+            Outlined(c, 7, 1, 8, 6, PixelArt.Hex("7fd486"), IconInk);
+            c.Rect(9, 3, 4, 1, PixelArt.Hex("2e8f62"));
+            Add(c, Center, "app_messages");
+
             c = Icon();                                       // SIMPAN: disket
             Outlined(c, 2, 2, 12, 12, PixelArt.Hex("3b6fb6"), IconInk);
             c.Rect(5, 9, 6, 4, PixelArt.Hex("dcdde2"));
@@ -49,6 +64,16 @@ namespace PixelAdventure.LifeSim
             c.Triangle(new Vector2(5f, 8f), new Vector2(10f, 13f), new Vector2(10f, 3f), PixelArt.Hex("e9e2c9"));
             c.Rect(12, 6, 1, 4, PixelArt.Hex("ffd35c")); c.Rect(14, 5, 1, 6, PixelArt.Hex("ffd35c"));
             Add(c, Center, "app_sound");
+
+            c = Icon();                                       // GRAFIK: monitor dengan pemandangan
+            Outlined(c, 1, 4, 14, 10, PixelArt.Hex("3a3f52"), IconInk);
+            c.Rect(2, 5, 12, 8, PixelArt.Hex("7fc8e8"));
+            c.Triangle(new Vector2(2f, 5f), new Vector2(6f, 10f), new Vector2(10f, 5f), PixelArt.Hex("4fae62"));
+            c.Triangle(new Vector2(7f, 5f), new Vector2(10.5f, 9f), new Vector2(14f, 5f), PixelArt.Hex("3c8a4c"));
+            c.Disc(11.5f, 11f, 1.2f, PixelArt.Hex("ffd35c"));
+            c.Rect(7, 2, 2, 2, IconInk);
+            c.Rect(5, 1, 6, 1, IconInk);
+            Add(c, Center, "app_display");
 
             c = Icon();                                       // MENU UTAMA: rumah
             c.Triangle(new Vector2(8f, 15f), new Vector2(1f, 8f), new Vector2(15f, 8f), PixelArt.Hex("d8584a"));
@@ -71,6 +96,32 @@ namespace PixelAdventure.LifeSim
             for (int y = 6; y <= 11; y += 2) { c.Rect(2, y, 4, 1, PixelArt.Hex("8a9098")); c.Rect(10, y, 4, 1, PixelArt.Hex("8a9098")); }
             c.Rect(11, 12, 2, 4, PixelArt.Hex("e8b23a"));                 // pita pembatas
             Add(c, Center, "app_guide");
+
+            c = Icon();                                       // PETA: peta lipat dengan rute & pin
+            Outlined(c, 1, 2, 14, 12, PixelArt.Hex("8fc46a"), IconInk);
+            c.Rect(2, 3, 4, 10, PixelArt.Hex("a8d47e"));                  // lipatan terang
+            c.Rect(10, 3, 4, 10, PixelArt.Hex("a8d47e"));
+            c.Rect(6, 3, 1, 10, PixelArt.Hex("5f8f48")); c.Rect(9, 3, 1, 10, PixelArt.Hex("5f8f48"));
+            c.Rect(2, 9, 12, 2, PixelArt.Hex("e9d6a8"));                  // jalan
+            c.Rect(11, 3, 2, 10, PixelArt.Hex("e9d6a8"));
+            c.Disc(5f, 6f, 2.2f, PixelArt.Hex("d8384a"));                 // pin tujuan
+            c.Set(5, 6, PixelArt.Hex("fff6e8"));
+            c.Rect(5, 3, 1, 2, PixelArt.Hex("d8384a"));
+            Add(c, Center, "app_map");
+
+            c = Icon();                                       // TABLET (bilah tombol HUD): tablet dengan layar
+            Outlined(c, 2, 1, 12, 14, PixelArt.Hex("3a3f52"), IconInk);
+            c.Rect(3, 3, 10, 10, PixelArt.Hex("7fc8e8"));
+            c.Rect(4, 9, 3, 3, PixelArt.Hex("ffd35c")); c.Rect(9, 9, 3, 3, PixelArt.Hex("4fae62"));
+            c.Rect(4, 4, 3, 3, PixelArt.Hex("ff9fc0")); c.Rect(9, 4, 3, 3, PixelArt.Hex("c8794a"));
+            c.Rect(7, 2, 2, 1, PixelArt.Hex("8a9098"));
+            Add(c, Center, "app_tablet");
+
+            c = Icon();                                       // JEDA (bilah tombol HUD): dua garis tegak
+            c.Disc(8f, 8f, 7f, IconInk);
+            c.Disc(8f, 8f, 6f, PixelArt.Hex("e9e2c9"));
+            c.Rect(5, 4, 2, 8, IconInk); c.Rect(9, 4, 2, 8, IconInk);
+            Add(c, Center, "app_pause");
 
             c = Icon();                                       // TUTUP: silang
             c.Line(3, 3, 12, 12, PixelArt.Hex("ff6b6b"), 2);

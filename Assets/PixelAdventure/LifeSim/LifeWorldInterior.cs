@@ -44,13 +44,32 @@ namespace PixelAdventure.LifeSim
                     // Hanya rumah sendiri / kost yang bisa dimasuki.
                     if (id != LocationId.RumahZidan && id != LocationId.KostPelangi) return false;
                     kind = InteriorKind.Home; return true;
-                case Kind.Shop: kind = InteriorKind.Shop; return true;
+                case Kind.Shop:
+                    switch (id)
+                    {
+                        case LocationId.DealerKendaraan: kind = InteriorKind.Dealer; break;
+                        case LocationId.TokoElektronik: kind = InteriorKind.Electronics; break;
+                        case LocationId.TokoBuku: kind = InteriorKind.Books; break;
+                        case LocationId.TokoPakaian: kind = InteriorKind.Clothes; break;
+                        case LocationId.TokoBungaMelati: kind = InteriorKind.Flowers; break;
+                        case LocationId.TokoPancing: kind = InteriorKind.Fishing; break;
+                        case LocationId.TokoKelontong:
+                        case LocationId.TokoKebutuhanRumah:
+                        case LocationId.TokoAnugerah: kind = InteriorKind.Grocery; break;
+                        default: kind = InteriorKind.Shop; break;     // minimarket, toko serba ada
+                    }
+                    return true;
                 case Kind.Cafe: kind = InteriorKind.Cafe; return true;
                 case Kind.Inn: kind = InteriorKind.Inn; return true;
                 case Kind.Tower: kind = InteriorKind.Office; return true;
                 case Kind.Facade:
                     kind = id == LocationId.Perpustakaan ? InteriorKind.Library
                         : id == LocationId.BengkelJayaMotor ? InteriorKind.Workshop
+                        : id == LocationId.RumahSakitSehat ? InteriorKind.Hospital
+                        : id == LocationId.Sekolah ? InteriorKind.School
+                        : id == LocationId.BalaiDesa ? InteriorKind.Balai
+                        : id == LocationId.MasjidKota ? InteriorKind.Mosque
+                        : id == LocationId.GerejaKota ? InteriorKind.Church
                         : InteriorKind.Office;
                     return true;
                 default: return false;
@@ -68,8 +87,10 @@ namespace PixelAdventure.LifeSim
             TryInteriorKind(id, out InteriorKind kind);
             InteriorLocation = id;
 
-            int w = kind == InteriorKind.Home ? 12 : kind == InteriorKind.Shop || kind == InteriorKind.Cafe ? 16 : 14;
-            int h = kind == InteriorKind.Home ? 8 : kind == InteriorKind.Shop || kind == InteriorKind.Cafe ? 10 : 9;
+            bool small = kind == InteriorKind.Inn || kind == InteriorKind.Office || kind == InteriorKind.Library
+                || kind == InteriorKind.Workshop || kind == InteriorKind.Hospital || kind == InteriorKind.School || kind == InteriorKind.Balai;
+            int w = kind == InteriorKind.Home ? 12 : small ? 14 : 16;
+            int h = kind == InteriorKind.Home ? 8 : small ? 9 : 10;
             float L = Mathf.Round(Width * 0.5f - w * 0.5f);
             float B = Mathf.Round(Height * 0.5f - h * 0.5f);
             float doorX = L + w * 0.5f;
@@ -114,7 +135,7 @@ namespace PixelAdventure.LifeSim
 
         void BuildRoom(InteriorKind kind, LocationId id, float L, float B, int w, int h)
         {
-            string staff = "lc_warga" + (1 + ((int)id % 6)) + "_down_0";
+            string staff = LifeArt.StaffSprite(kind, (int)id);
             float wallY = B + h + 0.55f;
 
             switch (kind)
@@ -201,8 +222,197 @@ namespace PixelAdventure.LifeSim
                     Spot(L + 10.5f, B + 1.9f, "MONTIR");
                     break;
 
-                default: // kantor / balai / rumah sakit / sekolah
-                    Item(staff.Replace("_down_0", "_down_0"), L + 3f, B + 6.9f, 0.6f, 0.4f);
+                case InteriorKind.Dealer:
+                    // Motor di atas panggung pamer, deretan sepeda, rak helm.
+                    Flat("lc_int_podium", L + 3.5f, B + 6f);
+                    Item("lc_vehicle_motorcycle", L + 3.5f, B + 6.3f, 2.6f, 0.6f);
+                    Flat("lc_int_podium", L + 3.5f, B + 2.6f);
+                    Item("lc_vehicle_motorcycle", L + 3.5f, B + 2.9f, 2.6f, 0.6f);
+                    Item("lc_int_bicycle", L + 7.6f, B + 7.4f, 1.8f, 0.4f);
+                    Item("lc_int_bicycle", L + 10.2f, B + 7.4f, 1.8f, 0.4f);
+                    Item("lc_int_bicycle", L + 10.4f, B + 5f, 1.8f, 0.4f);
+                    Item("lc_int_helmets", L + 13.6f, B + 7.4f, 2f, 0.6f);
+                    Item(staff, L + 13.2f, B + 4.3f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 12.8f, B + 3.2f, 4f, 0.9f);
+                    Item("lc_int_plant", L + 1f, B + 0.8f, 0.6f, 0.4f);
+                    Item("lc_int_plant", L + 15f, B + 0.8f, 0.6f, 0.4f);
+                    Wall("lc_int_window", L + 5f, wallY); Wall("lc_int_painting", L + 9f, wallY + 0.4f);
+                    Spot(L + 12.8f, B + 2.5f, "KASIR");
+                    break;
+
+                case InteriorKind.Electronics:
+                    Item("lc_int_speaker", L + 1.3f, B + 7.4f, 0.7f, 0.4f);
+                    Item("lc_int_tv_wall", L + 4.4f, B + 7.2f, 4f, 0.6f);
+                    Item("lc_int_tv_wall", L + 9f, B + 7.2f, 4f, 0.6f);
+                    Item("lc_int_speaker", L + 11.6f, B + 7.4f, 0.7f, 0.4f);
+                    Item("lc_int_phone_case", L + 3.6f, B + 4f, 2.6f, 0.6f);
+                    Item("lc_int_phone_case", L + 8.6f, B + 4.6f, 2.6f, 0.6f);
+                    Item("lc_int_shelf", L + 14f, B + 6.6f, 3f, 0.8f);
+                    Item(staff, L + 13.2f, B + 4.3f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 12.8f, B + 3.2f, 4f, 0.9f);
+                    Item("lc_int_plant", L + 1f, B + 0.8f, 0.6f, 0.4f);
+                    Wall("lc_int_window", L + 14f, wallY + 0.9f);
+                    Spot(L + 12.8f, B + 2.5f, "KASIR");
+                    break;
+
+                case InteriorKind.Books:
+                    Item("lc_int_bookshelf", L + 2.8f, B + 6.6f, 3f, 0.8f);
+                    Item("lc_int_bookshelf", L + 6.4f, B + 6.6f, 3f, 0.8f);
+                    Item("lc_int_bookshelf", L + 10f, B + 6.6f, 3f, 0.8f);
+                    Item("lc_int_bookshelf", L + 2.8f, B + 3.4f, 3f, 0.8f);
+                    Item("lc_int_table", L + 6f, B + 3.8f, 2.1f, 0.9f);       // meja pajang buku baru
+                    Item("lc_int_chair", L + 4.6f, B + 1.2f, 0.6f, 0.4f);
+                    Item(staff, L + 13.2f, B + 4.3f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 12.8f, B + 3.2f, 4f, 0.9f);
+                    Item("lc_int_plant", L + 14.8f, B + 7f, 0.6f, 0.4f);
+                    Item("lc_int_plant", L + 15f, B + 0.8f, 0.6f, 0.4f);
+                    Wall("lc_int_painting", L + 13.4f, wallY + 0.4f);
+                    Spot(L + 12.8f, B + 2.5f, "KASIR");
+                    break;
+
+                case InteriorKind.Clothes:
+                    Flat("lc_int_rug", L + 8f, B + 4.4f);
+                    Item("lc_int_clothes_rack", L + 3f, B + 6.8f, 2.8f, 0.4f);
+                    Item("lc_int_clothes_rack", L + 6.6f, B + 6.8f, 2.8f, 0.4f);
+                    Item("lc_int_clothes_rack", L + 3f, B + 3.6f, 2.8f, 0.4f);
+                    Item("lc_int_mannequin", L + 9.4f, B + 7f, 0.7f, 0.4f);
+                    Item("lc_int_mannequin", L + 10.6f, B + 7f, 0.7f, 0.4f);
+                    Item("lc_int_fitting", L + 14.4f, B + 7f, 1.9f, 0.6f);
+                    Item("lc_int_mannequin", L + 1.2f, B + 0.9f, 0.7f, 0.4f);
+                    Item("lc_int_mannequin", L + 14.8f, B + 0.9f, 0.7f, 0.4f);
+                    Item(staff, L + 12.6f, B + 4.3f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 12.2f, B + 3.2f, 4f, 0.9f);
+                    Wall("lc_int_painting", L + 5f, wallY + 0.4f); Wall("lc_int_window", L + 12f, wallY);
+                    Spot(L + 12.2f, B + 2.5f, "KASIR");
+                    break;
+
+                case InteriorKind.Flowers:
+                    Item("lc_int_flower_stand", L + 3.2f, B + 7f, 2.6f, 0.5f);
+                    Item("lc_int_flower_stand", L + 7.4f, B + 7f, 2.6f, 0.5f);
+                    Item("lc_int_flower_stand", L + 11.6f, B + 7f, 2.6f, 0.5f);
+                    Item("lc_int_flower_stand", L + 3.2f, B + 3.8f, 2.6f, 0.5f);
+                    Item("lc_int_plant", L + 1f, B + 0.8f, 0.6f, 0.4f);
+                    Item("lc_int_plant", L + 5.4f, B + 1f, 0.6f, 0.4f);
+                    Item("lc_int_plant", L + 15f, B + 0.8f, 0.6f, 0.4f);
+                    Item("lc_int_plant", L + 14.8f, B + 7.2f, 0.6f, 0.4f);
+                    Item(staff, L + 13.2f, B + 4.3f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 12.8f, B + 3.2f, 4f, 0.9f);
+                    Wall("lc_int_window", L + 5f, wallY); Wall("lc_int_window", L + 11f, wallY);
+                    Spot(L + 12.8f, B + 2.5f, "KASIR");
+                    break;
+
+                case InteriorKind.Grocery:
+                    Item("lc_int_shelf", L + 3.4f, B + 6.4f, 3f, 0.8f);
+                    Item("lc_int_shelf", L + 7.6f, B + 6.4f, 3f, 0.8f);
+                    Item("lc_int_fridge", L + 11.2f, B + 7.4f, 1.4f, 0.7f);
+                    Item("lc_int_gallons", L + 14.4f, B + 7.4f, 1.6f, 0.5f);
+                    Item("lc_int_rice_sacks", L + 3.2f, B + 3.2f, 2.4f, 0.6f);
+                    Item("lc_int_rice_sacks", L + 3.2f, B + 0.9f, 2.4f, 0.6f);
+                    Item("lc_int_gallons", L + 15f, B + 0.9f, 1.6f, 0.5f);
+                    Item(staff, L + 13.2f, B + 4.3f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 12.8f, B + 3.2f, 4f, 0.9f);
+                    Wall("lc_int_window", L + 5.5f, wallY);
+                    Spot(L + 12.8f, B + 2.5f, "KASIR");
+                    break;
+
+                case InteriorKind.Fishing:
+                    Item("lc_int_rods", L + 2.8f, B + 7.2f, 2.6f, 0.4f);
+                    Item("lc_int_rods", L + 6.2f, B + 7.2f, 2.6f, 0.4f);
+                    Item("lc_int_aquarium", L + 10.2f, B + 7.2f, 2.6f, 0.6f);
+                    Item("lc_int_aquarium", L + 3f, B + 3.6f, 2.6f, 0.6f);
+                    Item("lc_int_shelf", L + 14f, B + 6.6f, 3f, 0.8f);
+                    Item(staff, L + 13.2f, B + 4.3f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 12.8f, B + 3.2f, 4f, 0.9f);
+                    Item("lc_int_plant", L + 1f, B + 0.8f, 0.6f, 0.4f);
+                    Wall("lc_int_window", L + 6f, wallY + 0.9f); Wall("lc_int_painting", L + 10.2f, wallY + 0.6f);
+                    Spot(L + 12.8f, B + 2.5f, "KASIR");
+                    break;
+
+                case InteriorKind.Hospital:
+                    Item("lc_int_hospital_bed", L + 2.4f, B + 5.6f, 1.8f, 1.8f);
+                    Item("lc_int_curtain", L + 4f, B + 5.6f, 1.4f, 0.3f);
+                    Item("lc_int_hospital_bed", L + 5.6f, B + 5.6f, 1.8f, 1.8f);
+                    Item("lc_int_waiting", L + 3.4f, B + 1.2f, 3f, 0.5f);
+                    Item("lc_int_waiting", L + 11.2f, B + 6.8f, 3f, 0.5f);
+                    Item(staff, L + 11f, B + 4.1f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 10.5f, B + 3f, 4f, 0.9f);
+                    Item("lc_int_plant", L + 13f, B + 0.8f, 0.6f, 0.4f);
+                    Wall("lc_int_window", L + 4f, wallY); Wall("lc_int_painting", L + 11f, wallY + 0.4f);
+                    Spot(L + 10.5f, B + 2.3f, "RESEPSIONIS");
+                    break;
+
+                case InteriorKind.School:
+                    Wall("lc_int_blackboard", L + 5.5f, wallY - 0.2f);
+                    Item("lc_int_flag", L + 9.2f, B + 7.4f, 0.6f, 0.3f);
+                    Item(staff, L + 5.5f, B + 7.5f, 0.6f, 0.4f);
+                    Item("lc_int_desk", L + 5.5f, B + 6.4f, 2.5f, 0.8f);
+                    foreach (float sx in new[] { 1.8f, 3.6f, 10.4f, 12.2f })
+                        foreach (float sy in new[] { 1.6f, 3.6f })
+                            Item("lc_int_school_desk", L + sx, B + sy, 1.4f, 0.5f);
+                    Item("lc_int_bookshelf", L + 12f, B + 6.6f, 3f, 0.8f);
+                    Item("lc_int_plant", L + 1f, B + 6.8f, 0.6f, 0.4f);
+                    Wall("lc_int_window", L + 12f, wallY + 0.9f);
+                    Spot(L + 5.5f, B + 5.7f, "GURU");
+                    break;
+
+                case InteriorKind.Balai:
+                    Flat("lc_int_rug", L + 5f, B + 4.8f);
+                    Item("lc_int_flag", L + 1.2f, B + 7f, 0.6f, 0.3f);
+                    Item("lc_int_chair", L + 3.4f, B + 6.4f, 0.6f, 0.4f);
+                    Item("lc_int_chair", L + 5f, B + 6.4f, 0.6f, 0.4f);
+                    Item("lc_int_chair", L + 6.6f, B + 6.4f, 0.6f, 0.4f);
+                    Item("lc_int_meeting_table", L + 5f, B + 4.6f, 4f, 0.7f);
+                    Item("lc_int_chair", L + 3.4f, B + 3.9f, 0.6f, 0.4f);
+                    Item("lc_int_chair", L + 6.6f, B + 3.9f, 0.6f, 0.4f);
+                    Item("lc_int_bookshelf", L + 11.6f, B + 6.6f, 3f, 0.8f);
+                    Item(staff, L + 11f, B + 4.1f, 0.6f, 0.4f);
+                    Item("lc_int_counter", L + 10.5f, B + 3f, 4f, 0.9f);
+                    Item("lc_int_plant", L + 1f, B + 0.8f, 0.6f, 0.4f);
+                    Item("lc_int_plant", L + 13f, B + 0.8f, 0.6f, 0.4f);
+                    Wall("lc_int_painting", L + 5f, wallY + 0.4f); Wall("lc_int_window", L + 9f, wallY);
+                    Spot(L + 10.5f, B + 2.3f, "PETUGAS BALAI");
+                    break;
+
+                case InteriorKind.Mosque:
+                    // Mihrab di tengah dinding kiblat, mimbar & bedug, saf sajadah, rak Al-Qur'an, tempat wudhu.
+                    Wall("lc_int_mihrab", L + 8f, B + h + 0.1f);
+                    Wall("lc_int_prayer_board", L + 3.6f, wallY + 0.2f);
+                    Wall("lc_int_calligraphy", L + 12.6f, wallY + 0.6f);
+                    foreach (float sy in new[] { 6.2f, 4.6f, 3.0f })
+                    {
+                        Flat("lc_int_saf", L + 4.6f, B + sy);
+                        Flat("lc_int_saf", L + 11.4f, B + sy);
+                    }
+                    Item("lc_int_mimbar", L + 11.2f, B + 8.3f, 1.8f, 0.6f);
+                    Item("lc_int_bedug", L + 14.4f, B + 8f, 1.8f, 0.6f);
+                    Item("lc_int_bookshelf", L + 2.2f, B + 8f, 3f, 0.8f);
+                    Item(staff, L + 4.6f, B + 8.3f, 0.6f, 0.4f);
+                    Item("lc_int_wudhu", L + 2.7f, B + 0.9f, 3.4f, 0.5f);
+                    Item("lc_int_plant", L + 15f, B + 0.8f, 0.6f, 0.4f);
+                    Spot(L + 8f, B + 7.4f, "SHOLAT");
+                    break;
+
+                case InteriorKind.Church:
+                    // Altar & salib di depan, bangku jemaat di kiri-kanan lorong karpet merah.
+                    Wall("lc_int_cross", L + 8f, wallY + 0.3f);
+                    Wall("lc_int_stained", L + 3.5f, wallY); Wall("lc_int_stained", L + 12.5f, wallY);
+                    Item("lc_int_altar", L + 8f, B + 8f, 3.6f, 0.8f);
+                    Item("lc_int_candles", L + 5.4f, B + 8.2f, 0.6f, 0.3f);
+                    Item("lc_int_candles", L + 10.6f, B + 8.2f, 0.6f, 0.3f);
+                    Item("lc_int_organ", L + 14f, B + 7.8f, 2.2f, 0.6f);
+                    Item(staff, L + 2.2f, B + 8f, 0.6f, 0.4f);
+                    foreach (float py in new[] { 1.8f, 3.5f, 5.2f })
+                    {
+                        Item("lc_int_pew", L + 3.9f, B + py, 3.8f, 0.5f);
+                        Item("lc_int_pew", L + 12.1f, B + py, 3.8f, 0.5f);
+                    }
+                    Item("lc_int_plant", L + 1f, B + 0.8f, 0.6f, 0.4f);
+                    Item("lc_int_plant", L + 15f, B + 0.8f, 0.6f, 0.4f);
+                    Spot(L + 8f, B + 6.7f, "BERDOA");
+                    break;
+
+                default: // kantor
+                    Item(LifeArt.StaffSprite(kind, (int)id + 1, true), L + 3f, B + 6.9f, 0.6f, 0.4f);
                     Item("lc_int_desk", L + 3f, B + 5.8f, 2.5f, 0.8f);
                     Item("lc_int_desk", L + 6.5f, B + 5.8f, 2.5f, 0.8f);
                     Item("lc_int_bookshelf", L + 12f, B + 6.6f, 3f, 0.8f);
