@@ -134,6 +134,8 @@ namespace PixelAdventure.LifeSim
             _sheetPixels = src;
             _sheetW = sheetW;
             _sheetH = sheetH;
+            // Sprite lama sudah dihancurkan (Play baru tanpa domain reload): lupakan pakaian terpasang.
+            ResetPlayerLook();
 
             // Semua karakter yang belum punya peran menjadi warga pejalan kaki.
             var cast = new List<KeyValuePair<string, int>>(SheetRows);
@@ -179,7 +181,6 @@ namespace PixelAdventure.LifeSim
 
         static Color32[] _sheetPixels;
         static int _sheetW, _sheetH;
-        static int _playerOutfitRow = -1;
 
         /// <summary>Baris kepala tokoh utama di sheet (1. Zidan).</summary>
         const int PlayerSheetRow = 0;
@@ -227,41 +228,7 @@ namespace PixelAdventure.LifeSim
             return c;
         }
 
-        /// <summary>
-        /// Ganti pakaian tokoh utama: sprite "lc_player_*" dibuat ulang dari kepala tokoh utama
-        /// dan badan baris <paramref name="bodyRow"/> (-1 = baju harian). Return false bila sheet tidak ada.
-        /// </summary>
-        public static bool ApplyPlayerOutfit(int bodyRow)
-        {
-            if (_sheetPixels == null) return false;
-            int rows = _sheetH / SheetFrameH;
-            if (bodyRow < 0 || bodyRow >= rows) bodyRow = PlayerSheetRow;
-            if (bodyRow == _playerOutfitRow) return true;
-            _playerOutfitRow = bodyRow;
-
-            for (int dir = 0; dir < 4; dir++)
-            {
-                int col = SheetColumnForDir[dir];
-                for (int frame = 0; frame < 3; frame++)
-                {
-                    var c = OutfitCanvas(bodyRow, col);
-                    if (frame == 1) LiftLeg(c, 0, SheetFrameW / 2);
-                    else if (frame == 2) LiftLeg(c, SheetFrameW / 2, SheetFrameW);
-                    Add(c, new Vector2(0.5f, 0f), "player_" + DirNames[dir] + "_" + frame);
-                }
-            }
-            return true;
-        }
-
-        /// <summary>Ikon pakaian (tokoh utama tampak depan memakai baju itu), dibuat sekali.</summary>
-        public static string OutfitIcon(int bodyRow)
-        {
-            string key = Prefix + "outfit_" + bodyRow;
-            if (PixelArt.Sprites.ContainsKey(key)) return key;
-            if (_sheetPixels == null || bodyRow < 0 || bodyRow >= _sheetH / SheetFrameH) return null;
-            Add(OutfitCanvas(bodyRow, 0), new Vector2(0.5f, 0.5f), "outfit_" + bodyRow);
-            return key;
-        }
+        // ApplyPlayerLook / LookIcon (baju + topi + sepatu) ada di LifeArtWardrobe.cs.
 
         /// <summary>Mengangkat satu kaki 1 piksel (kolom x0..x1) untuk frame langkah.</summary>
         static void LiftLeg(PixelCanvas c, int x0, int x1)

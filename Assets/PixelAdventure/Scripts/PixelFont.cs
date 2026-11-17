@@ -21,15 +21,55 @@ namespace PixelAdventure
         static readonly Dictionary<char, string[]> Glyphs = new Dictionary<char, string[]>();
         static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
 
+        /// <summary>
+        /// Batas jumlah sprite teks di cache. Teks dinamis (jam, uang, energi, nama barang) membuat
+        /// sprite baru untuk tiap nilai; dulu cache tumbuh tanpa batas sepanjang permainan
+        /// (kebocoran memori tekstur). Saat batas terlampaui, sprite yang tidak sedang dipakai
+        /// SpriteRenderer mana pun dihancurkan.
+        /// </summary>
+        const int MaxCachedSprites = 1500;
+
         static PixelFont() { BuildGlyphs(); }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetRuntimeCache() => Cache.Clear();
 
+        /// <summary>
+        /// Samakan tanda baca tipografis & huruf beraksen dengan glyph yang ada, supaya tidak
+        /// tampil sebagai "?": – — → "-", “ ” → ", ‘ ’ → ', … → ..., é → E, dst.
+        /// </summary>
+        public static string Normalize(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            bool plain = true;
+            foreach (char ch in text) if (ch > 126) { plain = false; break; }
+            if (plain) return text;
+
+            var sb = new System.Text.StringBuilder(text.Length);
+            foreach (char ch in text)
+            {
+                if (ch <= 126 || Glyphs.ContainsKey(ch)) { sb.Append(ch); continue; }
+                switch (ch)
+                {
+                    case '–': case '—': case '−': sb.Append('-'); continue;
+                    case '“': case '”': case '„': sb.Append('"'); continue;
+                    case '‘': case '’': sb.Append('\''); continue;
+                    case '…': sb.Append("..."); continue;
+                    case '•': case '·': sb.Append('-'); continue;
+                    case ' ': sb.Append(' '); continue;
+                }
+                // Huruf beraksen: ambil huruf dasarnya (é -> e).
+                string d = ch.ToString().Normalize(System.Text.NormalizationForm.FormD);
+                sb.Append(d.Length > 0 && d[0] <= 126 ? d[0] : ch);
+            }
+            return sb.ToString();
+        }
+
         public static Sprite Render(string text, Color mainColor, Color outlineColor, int scale = 2,
             Vector2? pivot = null)
         {
             if (string.IsNullOrEmpty(text)) text = " ";
+            text = Normalize(text);
             scale = Mathf.Max(1, scale);
             Vector2 resolvedPivot = pivot ?? new Vector2(0f, 0.5f);
             string pivotKey = resolvedPivot.x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) +
@@ -102,8 +142,33 @@ namespace PixelAdventure
             var sprite = Sprite.Create(tex, new Rect(0, 0, texW, texH),
                 resolvedPivot, PixelArt.PPU, 0, SpriteMeshType.FullRect);
             sprite.name = "text_" + text;
+            if (Cache.Count >= MaxCachedSprites) TrimCache();
             Cache[key] = sprite;
             return sprite;
+        }
+
+        /// <summary>
+        /// Hancurkan sprite teks yang tidak sedang dipasang di SpriteRenderer mana pun (termasuk
+        /// yang nonaktif, supaya label yang disembunyikan sementara tidak hilang). Jarang dipanggil:
+        /// hanya saat cache penuh.
+        /// </summary>
+        static void TrimCache()
+        {
+            var inUse = new HashSet<Sprite>();
+            foreach (var sr in Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include))
+                if (sr.sprite != null) inUse.Add(sr.sprite);
+
+            var dead = new List<string>();
+            foreach (var pair in Cache)
+            {
+                if (pair.Value != null && inUse.Contains(pair.Value)) continue;
+                dead.Add(pair.Key);
+                if (pair.Value == null) continue;
+                Texture2D tex = pair.Value.texture;
+                Object.Destroy(pair.Value);
+                if (tex != null) Object.Destroy(tex);
+            }
+            foreach (string k in dead) Cache.Remove(k);
         }
 
         static void G(char ch, params string[] rows) { Glyphs[ch] = rows; }

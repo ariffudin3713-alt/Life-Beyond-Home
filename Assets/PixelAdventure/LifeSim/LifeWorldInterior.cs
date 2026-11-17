@@ -173,7 +173,9 @@ namespace PixelAdventure.LifeSim
                     Item("lc_int_counter", L + 4f, B + 6.6f, 4f, 0.9f);
                     Item("lc_int_fridge", L + 7.2f, B + 8.2f, 1.4f, 0.7f);
                     Item("lc_int_sofa", L + 13.4f, B + 7.6f, 2.7f, 0.8f);
-                    foreach (var t in new[] { new Vector2(9f, 4.4f), new Vector2(13f, 4.4f), new Vector2(9f, 1.6f), new Vector2(13f, 1.6f) })
+                    // Baris bawah tidak boleh di lorong pintu (x 6,75..9,25): dulu meja di (9; 1,6)
+                    // menimpa titik masuk (8; 1,6) sehingga pemain tersangkut begitu masuk kafe.
+                    foreach (var t in new[] { new Vector2(9f, 4.4f), new Vector2(13f, 4.4f), new Vector2(3.6f, 1.6f), new Vector2(13f, 1.6f) })
                     {
                         Item("lc_int_table", L + t.x, B + t.y, 2.1f, 0.9f);
                         Item("lc_int_chair", L + t.x - 1.4f, B + t.y - 0.1f, 0.6f, 0.4f);

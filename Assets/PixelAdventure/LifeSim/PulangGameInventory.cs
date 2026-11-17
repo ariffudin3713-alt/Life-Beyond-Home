@@ -152,8 +152,17 @@ namespace PixelAdventure.LifeSim
                 if (idx < 0) rows.Add(new KeyValuePair<ItemDef, int>(it, 1));
                 else rows[idx] = new KeyValuePair<ItemDef, int>(it, rows[idx].Value + 1);
             }
-            // Barang misi dulu, lalu makanan, hadiah, perlengkapan.
-            rows.Sort((a, b) => KindOrder(a.Key.Kind).CompareTo(KindOrder(b.Key.Kind)));
+            // Barang misi dulu, lalu kendaraan, pakaian (topi, baju, sepatu), makanan, hadiah, perlengkapan.
+            // Urutan harus stabil: List.Sort tidak stabil, sehingga barang sejenis bisa bertukar
+            // tempat setelah dipakai dan kursor tiba-tiba menunjuk barang lain.
+            var order = new Dictionary<ItemDef, int>();
+            for (int i = 0; i < rows.Count; i++) order[rows[i].Key] = i;
+            rows.Sort((a, b) =>
+            {
+                int c = KindOrder(a.Key.Kind).CompareTo(KindOrder(b.Key.Kind));
+                if (c == 0 && a.Key.IsOutfit && b.Key.IsOutfit) c = a.Key.Slot.CompareTo(b.Key.Slot);
+                return c != 0 ? c : order[a.Key].CompareTo(order[b.Key]);
+            });
             return rows;
         }
 
@@ -173,7 +182,10 @@ namespace PixelAdventure.LifeSim
             foreach (string id in D.inventory) { var qi = PulangItems.Get(id); if (qi != null && qi.Quest) quest++; }
             var tabs = (string[])InventoryTabNames.Clone();
             if (quest > 0) tabs[tabs.Length - 1] = "MISI (" + quest + ")";
-            _hud.ShowInventory(tabs, _invTab, entries, _invIndex, header, _invMessage);
+            // Tab PAKAIAN: tanpa pesan lain, tampilkan apa yang sedang dipakai di tiap slot.
+            string message = _invMessage;
+            if (string.IsNullOrEmpty(message) && InventoryTabs[_invTab] == ItemKind.Pakaian) message = WornSummary();
+            _hud.ShowInventory(tabs, _invTab, entries, _invIndex, header, message);
         }
 
         InvEntry EntryFor(ItemDef it, int count)
@@ -188,8 +200,8 @@ namespace PixelAdventure.LifeSim
             switch (it.Kind)
             {
                 case ItemKind.Makanan:
-                    e.Effect = "+" + it.Energy + " ENERGI" + (it.Gift != null ? "   BISA JADI HADIAH" : "");
-                    e.Action = "E - MAKAN";
+                    e.Effect = NeedEffect(it) + "   +" + it.Energy + " ENERGI" + (it.Gift != null ? "   BISA JADI HADIAH" : "");
+                    e.Action = it.Drink ? "E - MINUM" : "E - MAKAN";
                     e.Usable = true;
                     break;
                 case ItemKind.Hadiah:
@@ -202,10 +214,14 @@ namespace PixelAdventure.LifeSim
                     break;
                 case ItemKind.Pakaian:
                 {
-                    bool worn = D.outfit == it.Id;
-                    e.Icon = LifeArt.OutfitIcon(it.Outfit);
-                    e.Effect = worn ? "SEDANG DIPAKAI" : "BELI LAGI MODEL LAIN DI TOKO PAKAIAN";
-                    e.Action = worn ? "E - LEPAS (BAJU HARIAN)" : "E - PAKAI";
+                    // Ikon = pratinjau tokoh memakai barang ini bersama pakaian lain yang sedang dipakai.
+                    bool worn = IsWorn(it);
+                    string slot = SlotName(it.Slot);
+                    e.Icon = PreviewIcon(it);
+                    e.Name = it.Name + (worn ? " *" : "");
+                    e.Effect = "SLOT " + slot + (worn ? " - SEDANG DIPAKAI" : " - MENGGANTI " +
+                        (Worn(it.Slot) != null ? Worn(it.Slot).Name.ToUpperInvariant() : DefaultWearName(it.Slot)));
+                    e.Action = worn ? "E - LEPAS (" + DefaultWearName(it.Slot) + ")" : "E - PAKAI";
                     e.Usable = true;
                     break;
                 }
@@ -326,7 +342,7 @@ namespace PixelAdventure.LifeSim
                 if (it.Kind == ItemKind.Makanan)
                 {
                     EatFromBag(it.Id);
-                    _invMessage = ("MAKAN " + it.Name + " - ENERGI " + D.energy + "/100").ToUpperInvariant();
+                    _invMessage = ((it.Drink ? "MINUM " : "MAKAN ") + it.Name + " - LAPAR " + NeedValue(D.hunger) + "  HAUS " + NeedValue(D.thirst) + "  ENERGI " + D.energy).ToUpperInvariant();
                 }
                 else if (it.Kind == ItemKind.Pakaian)
                 {

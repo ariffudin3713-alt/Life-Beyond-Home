@@ -39,15 +39,38 @@ namespace PixelAdventure.LifeSim
         /// Ukuran UI yang dipakai: pilihan pemain, dibatasi agar panel HUD (dirancang untuk area
         /// 16 x 28 unit) tetap muat di layar sempit seperti tablet 4:3.
         /// </summary>
-        public static float UiScale
+        public static float UiScale => SnapToPixels(RawUiScale, UiScaleLimit);
+
+        /// <summary>Pilihan pemain setelah dibatasi ukuran layar (belum dibulatkan ke piksel).</summary>
+        static float RawUiScale => Mathf.Min(UiValues[UiIndex], UiScaleLimit);
+
+        static float UiScaleLimit
         {
             get
             {
                 float aspect = Screen.height > 0 ? Screen.width / (float)Screen.height : 16f / 9f;
                 float maxByHeight = BaseCameraSize / 6.6f;            // tinggi area HUD minimal 13,2 unit
                 float maxByWidth = BaseCameraSize * aspect / 10.5f;   // lebar area HUD minimal 21 unit
-                return Mathf.Min(UiValues[UiIndex], maxByHeight, Mathf.Max(0.8f, maxByWidth));
+                return Mathf.Min(maxByHeight, Mathf.Max(0.8f, maxByWidth));
             }
+        }
+
+        /// <summary>
+        /// Bulatkan skala UI agar satu piksel font (1/PPU unit HUD) = bilangan bulat piksel layar.
+        /// Tanpa ini (mis. 1080p, UI 100% = 4,22 piksel layar per piksel font) goresan huruf
+        /// berukuran tidak sama - sebagian 4 piksel, sebagian 5 - sehingga teks tampak bergerigi
+        /// dan melelahkan dibaca. Dibulatkan ke yang terdekat, tetapi tidak melewati batas layar.
+        /// </summary>
+        static float SnapToPixels(float scale, float limit)
+        {
+            int h = Screen.height;
+            if (h <= 0) return scale;
+            float unitPx = 2f * BaseCameraSize * PixelArt.PPU;   // piksel font setinggi area HUD pada skala 1
+            float k = h * scale / unitPx;                        // piksel layar per piksel font
+            if (k < 1.5f) return scale;                          // layar sangat kecil: biarkan
+            int kr = Mathf.RoundToInt(k);
+            if (kr * unitPx / h > limit + 0.0001f) kr = Mathf.FloorToInt(k);
+            return kr >= 1 ? kr * unitPx / h : scale;
         }
 
         /// <summary>PC / laptop: mode layar bisa diganti. Di HP & tablet selalu layar penuh.</summary>
@@ -206,8 +229,11 @@ namespace PixelAdventure.LifeSim
         {
             get
             {
-                int want = Mathf.RoundToInt(UiValues[UiIndex] * 100f), used = Mathf.RoundToInt(UiScale * 100f);
-                return used < want ? want + "% (MAKS " + used + "%)" : want + "%";
+                int want = Mathf.RoundToInt(UiValues[UiIndex] * 100f);
+                int max = Mathf.RoundToInt(RawUiScale * 100f);
+                int used = Mathf.RoundToInt(UiScale * 100f);
+                if (max < want) return want + "% (MAKS " + used + "%)";
+                return used != want ? want + "% (TAJAM " + used + "%)" : want + "%";
             }
         }
         /// <summary>Jenis perangkat + resolusi asli layar, mis. "PC 1920X1080".</summary>

@@ -593,7 +593,7 @@ namespace PixelAdventure.LifeSim
             if (outfits.Count > 0)
             {
                 LocationId shop = loc;
-                Add("Lihat koleksi pakaian (" + outfits.Count + " model)", () => OpenOutfitShop(shop, 0));
+                Add("Lihat koleksi pakaian (" + outfits.Count + " model)", () => OpenClothesShop(shop));
             }
 
             foreach (var item in PulangItems.SoldAt(loc))
@@ -756,7 +756,8 @@ namespace PixelAdventure.LifeSim
                 if (wanted != null && it.Id != wanted) continue;
                 D.inventory.Remove(id);
                 GameAudio.Play("eat", 0.6f);
-                _hud.ShowToast(("MAKAN " + it.Name + " " + GainEnergy(it.Energy)).ToUpperInvariant());
+                string energy = GainEnergy(it.Energy);
+                _hud.ShowToast(((it.Drink ? "MINUM " : "MAKAN ") + it.Name + " " + FeedNeeds(it) + "  " + energy).ToUpperInvariant());
                 return;
             }
         }
@@ -813,13 +814,14 @@ namespace PixelAdventure.LifeSim
             if (it.Energy > 0 && it.Gift == null) GameAudio.Play("eat", 0.5f);
             if (it.Energy > 0 && it.Gift == null)
             {
-                _hud.ShowToast(GainEnergy(it.Energy));
+                string energy = GainEnergy(it.Energy);
+                _hud.ShowToast((FeedNeeds(it) + "  " + energy).ToUpperInvariant());
             }
             else if (it.IsOutfit)
             {
                 // Pakaian baru langsung dipakai; yang lama tetap tersimpan di inventori.
                 D.inventory.Add(it.Id);
-                if (D.outfit != it.Id) ToggleOutfit(it);
+                if (!IsWorn(it)) ToggleOutfit(it);
                 _hud.ShowToast(("DAPAT " + it.Name + " - LANGSUNG DIPAKAI").ToUpperInvariant());
             }
             else

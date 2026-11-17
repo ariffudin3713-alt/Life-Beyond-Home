@@ -21,6 +21,7 @@ Semua sprite, UI, musik, dan efek suara dibuat saat runtime, tanpa aset eksterna
 | Jalan | `WASD` / panah |
 | Bicara, pilih, lanjut | `E`, `Spasi`, `Enter` |
 | Jurnal | `J` |
+| Inventori / tas (ganti pakaian) | `I` |
 | Panggil / simpan kendaraan | `V` |
 | Jeda | `P` / `Esc` |
 | Suara | `M` |
@@ -52,7 +53,10 @@ Cemara, terhubung lewat terminal/halte bus (Rp4.000–Rp5.000, 30 menit di dalam
 
 - **Waktu**: pagi, siang, sore, malam. Tidur di Kost Pelangi setelah 18.00.
 - **Uang & tabungan**: menabung di kost. Tabungan dipakai sebagai target sukses.
-- **Energi**: berkurang saat bekerja, pulih dengan makan dan tidur.
+- **Energi**: berkurang saat bekerja, pulih dengan makan dan tidur. Nilainya terlihat di inventori.
+- **Lapar & haus**: bar di kanan atas (penuh = kenyang / segar). Berkurang seiring waktu; makanan
+  mengisi lapar, minuman (es teh, kopi, es kelapa) mengisi haus. Bila salah satu habis, energi
+  terus berkurang sampai makan / minum.
 - **Pekerjaan**: 16 pekerjaan dari dokumen (sederhana, keterampilan, alam, profesional),
   1 pekerjaan utama + 1 sampingan, jam masuk, aturan terlambat, bonus kehadiran.
   Pekerjaan non-sederhana butuh kursus skill di perpustakaan.
@@ -61,6 +65,12 @@ Cemara, terhubung lewat terminal/halte bus (Rp4.000–Rp5.000, 30 menit di dalam
 - **Kendaraan pribadi**: sepeda, skuter matic, sepeda motor, dan mobil dari Dealer Kendaraan Maju.
   Disimpan di inventori (tab KENDARAAN); tekan `V` di luar ruangan untuk memanggil atau
   menyimpannya. Bisa dikendarai sendiri ke wilayah lain dari terminal (bensin / gratis untuk sepeda).
+- **Pakaian**: tiga slot — TOPI, BAJU, SEPATU — dibeli di Toko Pakaian (Pasar Ramai Jaya).
+  Ganti atau lepas kapan saja lewat inventori (`I`, ikon tas, atau tablet) tab PAKAIAN; ikon
+  barang menampilkan pratinjau tokoh memakainya, dan sprite berubah seketika. Pakaian langsung
+  disimpan setiap berganti.
+- **Teks**: font piksel 5x7 bawaan. Skala UI dibulatkan agar satu piksel font = bilangan bulat
+  piksel layar (huruf tetap tajam); opsi UKURAN UI menampilkan "(TAJAM n%)" bila dibulatkan.
 
 ## Struktur kode
 

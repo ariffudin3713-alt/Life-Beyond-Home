@@ -86,8 +86,7 @@ namespace PixelAdventure.LifeSim
             if (_loadingGroup != null && _loadingGroup.gameObject.activeSelf)
                 LayoutLoading(halfW, halfH);
 
-            LayoutMinimap(halfW, halfH);       // dulu, agar batas minimap siap untuk penunjuk misi
-            LayoutQuestCompass(halfW, halfH);
+            LayoutMinimap(halfW, halfH);       // arah ke tujuan misi ada di minimap
         }
 
         void LayoutLoading(float halfW, float halfH)

@@ -20,11 +20,16 @@ namespace PixelAdventure.LifeSim.Pulang
     /// <summary>Kategori barang di inventori.</summary>
     public enum ItemKind { Makanan, Hadiah, Perlengkapan, Misi, Kendaraan, Pakaian }
 
+    /// <summary>Slot pakaian tokoh utama. Tiap slot dipakai/dilepas sendiri-sendiri.</summary>
+    public enum WearSlot { Topi, Baju, Sepatu }
+
     public class ItemDef
     {
         public string Id, Name;
         public int Price;
         public int Energy;          // makanan/minuman
+        public bool Drink;          // minuman: mengisi HAUS (makanan mengisi LAPAR)
+        public int Thirst;          // makanan berkuah: sedikit mengisi HAUS juga
         public Gift? Gift;          // bisa jadi hadiah
         public LocationId[] SoldAt = new LocationId[0];
         public string Desc = "";    // keterangan di inventori
@@ -33,9 +38,15 @@ namespace PixelAdventure.LifeSim.Pulang
         public bool Engine;         // kendaraan bermesin (bisa dipakai antarwilayah, perlu bensin)
         public int TravelMinutes;   // lama berkendara sendiri ke wilayah lain
         public int Fuel;            // biaya bensin sekali jalan antarwilayah
-        public int Outfit = -1;     // pakaian: baris badan di spritesheet karakter (-1 = bukan pakaian)
+        public int Outfit = -1;     // baju: baris badan di spritesheet karakter (-1 = bukan baju)
+        public int Hat = -1;        // topi: gaya topi di LifeArt.HatStyles (-1 = bukan topi)
+        public int Shoes = -1;      // sepatu: gaya sepatu di LifeArt.ShoeStyles (-1 = bukan sepatu)
 
-        public bool IsOutfit => Outfit >= 0;
+        /// <summary>Barang yang bisa dipakai di badan tokoh utama (baju, topi, atau sepatu).</summary>
+        public bool IsOutfit => Outfit >= 0 || Hat >= 0 || Shoes >= 0;
+
+        /// <summary>Slot pakaian barang ini (hanya bermakna bila <see cref="IsOutfit"/>).</summary>
+        public WearSlot Slot => Hat >= 0 ? WearSlot.Topi : Shoes >= 0 ? WearSlot.Sepatu : WearSlot.Baju;
 
         public bool IsVehicle => Speed > 0f;
 
@@ -142,19 +153,19 @@ namespace PixelAdventure.LifeSim.Pulang
             new ItemDef { Id = "roti", Name = "Roti", Price = 5000, Energy = 15, Gift = Pulang.Gift.Roti,
                 SoldAt = new[] { LocationId.WarungBuSari, LocationId.Minimarket, LocationId.TokoKelontong },
                 Desc = "Roti manis untuk bekal. Bisa dimakan kapan saja atau diberikan sebagai hadiah." },
-            new ItemDef { Id = "es_teh", Name = "Es Teh", Price = 5000, Energy = 8,
+            new ItemDef { Id = "es_teh", Name = "Es Teh", Price = 5000, Energy = 8, Drink = true,
                 SoldAt = new[] { LocationId.WarungSenja, LocationId.WarungBuSari, LocationId.WarungMakanBuSiti,
                                  LocationId.Angkringan, LocationId.WarungPecelLele, LocationId.PecelLeleKota, LocationId.WarkopDesa },
                 Desc = "Segelas es teh manis yang menyegarkan." },
             new ItemDef { Id = "nasi_goreng", Name = "Nasi Goreng", Price = 15000, Energy = 30,
                 SoldAt = new[] { LocationId.WarungMakanBuSiti, LocationId.WarungBuSari },
                 Desc = "Sepiring nasi goreng hangat. Mengenyangkan." },
-            new ItemDef { Id = "kopi", Name = "Kopi", Price = 8000, Energy = 10, Gift = Pulang.Gift.Kopi,
+            new ItemDef { Id = "kopi", Name = "Kopi", Price = 8000, Energy = 10, Drink = true, Gift = Pulang.Gift.Kopi,
                 SoldAt = new[] { LocationId.CafeSenja, LocationId.Minimarket, LocationId.Angkringan, LocationId.WarkopDesa },
                 Desc = "Kopi hangat penambah semangat. Bisa juga jadi hadiah." },
 
             // ---- Makanan khas Indonesia (gerobak & warung tenda)
-            new ItemDef { Id = "bakso", Name = "Bakso", Price = 12000, Energy = 25,
+            new ItemDef { Id = "bakso", Name = "Bakso", Price = 12000, Energy = 25, Thirst = 15,
                 SoldAt = new[] { LocationId.GerobakBakso },
                 Desc = "Semangkuk bakso urat hangat dengan mi dan kuah kaldu." },
             new ItemDef { Id = "nasi_kucing", Name = "Nasi Kucing", Price = 3000, Energy = 8,
@@ -169,13 +180,13 @@ namespace PixelAdventure.LifeSim.Pulang
             new ItemDef { Id = "ayam_penyet", Name = "Ayam Penyet", Price = 18000, Energy = 35,
                 SoldAt = new[] { LocationId.WarungPecelLele, LocationId.PecelLeleKota },
                 Desc = "Ayam goreng yang dipenyet di atas sambal bawang. Pedas mantap!" },
-            new ItemDef { Id = "mi_rebus", Name = "Mi Rebus Telur", Price = 10000, Energy = 22,
+            new ItemDef { Id = "mi_rebus", Name = "Mi Rebus Telur", Price = 10000, Energy = 22, Thirst = 15,
                 SoldAt = new[] { LocationId.WarkopDesa },
                 Desc = "Mi instan rebus pakai telur dan cabai rawit. Menu andalan warkop." },
             new ItemDef { Id = "gorengan", Name = "Gorengan", Price = 2000, Energy = 5,
                 SoldAt = new[] { LocationId.WarkopDesa, LocationId.Angkringan },
                 Desc = "Bakwan, tahu isi, dan pisang goreng hangat. Cocok ditemani cabai rawit." },
-            new ItemDef { Id = "es_kelapa", Name = "Es Kelapa Muda", Price = 8000, Energy = 12,
+            new ItemDef { Id = "es_kelapa", Name = "Es Kelapa Muda", Price = 8000, Energy = 12, Drink = true,
                 SoldAt = new[] { LocationId.KiosEsKelapa },
                 Desc = "Air kelapa muda dingin langsung dari batoknya." },
 
@@ -234,6 +245,20 @@ namespace PixelAdventure.LifeSim.Pulang
             Outfit("batik_hijau",    "Kemeja Batik",         180000, 18, "Kemeja batik motif kembang. Pantas untuk acara resmi."),
             Outfit("jas_kantor",     "Setelan Jas Kantor",   350000, 38, "Jas biru tua dan dasi merah. Tampil profesional."),
 
+            // Topi (slot TOPI). Hat = indeks gaya di LifeArt.HatStyles.
+            HatItem("topi_merah",    "Topi Baseball Merah",   35000, 0, "Topi lidah merah. Menahan silau matahari siang."),
+            HatItem("topi_biru",     "Topi Baseball Biru",    35000, 1, "Topi lidah biru dongker, cocok dengan kaos apa saja."),
+            HatItem("peci_hitam",    "Peci Hitam",            40000, 2, "Peci beludru hitam. Rapi untuk ke masjid atau acara resmi."),
+            HatItem("caping",        "Caping Bambu",          30000, 3, "Caping anyaman bambu seperti milik petani desa."),
+            HatItem("kupluk",        "Kupluk Rajut",          45000, 4, "Kupluk rajut abu-abu. Hangat saat begadang."),
+            HatItem("topi_bucket",   "Topi Bucket Krem",      55000, 5, "Topi bucket krem, gaya santai ke pantai."),
+
+            // Sepatu (slot SEPATU). Shoes = indeks gaya di LifeArt.ShoeStyles.
+            ShoesItem("kets_merah",  "Sepatu Kets Merah",     90000, 0, "Kets merah ringan untuk jalan jauh."),
+            ShoesItem("pantofel",    "Sepatu Pantofel",      150000, 1, "Pantofel hitam mengilap. Pas dengan kemeja dan jas."),
+            ShoesItem("sandal_jepit","Sandal Jepit Biru",     20000, 2, "Sandal jepit biru. Santai, murah, dan adem."),
+            ShoesItem("sepatu_bot",  "Sepatu Bot Kulit",     175000, 3, "Bot kulit coklat yang kokoh untuk segala cuaca."),
+
             // ---- Barang misi sampingan (diberikan pemberi misi, diserahkan kepada penerima)
             new ItemDef { Id = "rantang_siti", Name = "Rantang Bu Siti", Quest = true,
                 Desc = "Masakan Bu Siti untuk Pak Slamet di Pos Ronda Kampung Cempaka." },
@@ -277,6 +302,14 @@ namespace PixelAdventure.LifeSim.Pulang
 
         static ItemDef Outfit(string id, string name, int price, int sheetRow, string desc) =>
             new ItemDef { Id = id, Name = name, Price = price, Outfit = sheetRow, Desc = desc,
+                SoldAt = new[] { LocationId.TokoPakaian } };
+
+        static ItemDef HatItem(string id, string name, int price, int style, string desc) =>
+            new ItemDef { Id = id, Name = name, Price = price, Hat = style, Desc = desc,
+                SoldAt = new[] { LocationId.TokoPakaian } };
+
+        static ItemDef ShoesItem(string id, string name, int price, int style, string desc) =>
+            new ItemDef { Id = id, Name = name, Price = price, Shoes = style, Desc = desc,
                 SoldAt = new[] { LocationId.TokoPakaian } };
 
         public static IEnumerable<ItemDef> SoldAt(LocationId loc)
