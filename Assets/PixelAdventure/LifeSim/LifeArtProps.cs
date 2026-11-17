@@ -777,6 +777,39 @@ namespace PixelAdventure.LifeSim
             c.Triangle(new Vector2(7.8f, 7.8f), new Vector2(12f, 7.8f), new Vector2(6.4f, 2f), main);
             c.Set(8, 12, light);
             Add(c, new Vector2(0.5f, 0.5f), "icon_bolt");
+            MakeNeedIcons();
+        }
+
+        /// <summary>Ikon HUD kebutuhan: mangkuk nasi (LAPAR) dan tetes air (HAUS), 16x16.</summary>
+        static void MakeNeedIcons()
+        {
+            // Mangkuk nasi
+            var c = new PixelCanvas(16, 16);
+            Color32 edge = PixelArt.Hex("3a2a20");
+            Color32 rice = PixelArt.Hex("fbf6e8"), riceShade = PixelArt.Hex("d9d0b8");
+            Color32 bowl = PixelArt.Hex("e2763a"), bowlShade = PixelArt.Hex("a84a22"), bowlLight = PixelArt.Hex("f6a46a");
+            c.Ellipse(8f, 9f, 6.2f, 3.6f, edge);            // gunungan nasi
+            c.Ellipse(8f, 9f, 5.2f, 2.8f, rice);
+            c.Rect(5, 9, 3, 1, riceShade);
+            c.Rect(9, 10, 2, 1, riceShade);
+            c.Rect(1, 3, 14, 6, edge);                       // mangkuk
+            c.Rect(2, 4, 12, 5, bowl);
+            c.Rect(2, 4, 12, 1, bowlShade);
+            c.Rect(3, 7, 4, 1, bowlLight);
+            c.Rect(5, 1, 6, 2, edge);                        // kaki mangkuk
+            c.Rect(6, 2, 4, 1, bowlShade);
+            Add(c, new Vector2(0.5f, 0.5f), "icon_hunger");
+
+            // Tetes air
+            c = new PixelCanvas(16, 16);
+            Color32 dEdge = PixelArt.Hex("163a6a"), water = PixelArt.Hex("4aa8ff"), waterLight = PixelArt.Hex("c4e6ff");
+            c.Ellipse(8f, 5.5f, 5f, 4.8f, dEdge);
+            c.Triangle(new Vector2(8f, 15.5f), new Vector2(3.1f, 6f), new Vector2(12.9f, 6f), dEdge);
+            c.Ellipse(8f, 5.5f, 4f, 3.8f, water);
+            c.Triangle(new Vector2(8f, 13.8f), new Vector2(4.2f, 6f), new Vector2(11.8f, 6f), water);
+            c.Rect(5, 5, 2, 3, waterLight);
+            c.Set(6, 9, waterLight);
+            Add(c, new Vector2(0.5f, 0.5f), "icon_thirst");
         }
 
         static void MakeClock()

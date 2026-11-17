@@ -151,6 +151,10 @@ namespace PixelAdventure.LifeSim.Pulang
         public int money = PulangBalance.StartMoney;
         public int savings;
         public int energy = 100;
+        // Kebutuhan tubuh (100 = kenyang / segar, 0 = kelaparan / kehausan). Simpanan lama
+        // tanpa field ini mulai dari 100.
+        public float hunger = 100f;
+        public float thirst = 100f;
         public int level = 1;
         public int exp;
         public string jobMain = "";
@@ -171,9 +175,14 @@ namespace PixelAdventure.LifeSim.Pulang
 
         public GirlProgress[] girls = NewGirls();
 
-        // Misi sampingan (lihat PulangSideQuests)         public GirlProgress[] girls = NewGirls(); pakaian yang sedang dipakai ("" = baju harian).
+        // Misi sampingan (lihat PulangSideQuests)
         public List<SideQuestProgress> side = new List<SideQuestProgress>();
-        public string outfit = "";
+
+        // Pakaian yang sedang dipakai per slot (id barang; "" = bawaan tokoh utama).
+        // Simpanan lama hanya punya "outfit"; "hat"/"shoes" yang tidak ada di JSON tetap "".
+        public string outfit = "";   // slot BAJU
+        public string hat = "";      // slot TOPI
+        public string shoes = "";    // slot SEPATU
         public List<string> flags = new List<string>();
 
         static GirlProgress[] NewGirls()

@@ -166,7 +166,6 @@ namespace PixelAdventure.LifeSim
                 _build = root;
                 _buildRegion = r;
                 _buildObstacles = new List<Rect>();
-                _buildHaltes.Clear();
                 _regionObstacles[r] = _buildObstacles;
                 _locations[r] = new List<LocationId>();
 
@@ -174,12 +173,14 @@ namespace PixelAdventure.LifeSim
                 foreach (var p in Layout)
                     if (PulangWorld.Get(p.Id).Region == r) Place(p, r);
                 BuildScenery(r);
-                BuildEdgeSigns(r);
+                // Papan nama wilayah di ujung jalan ("< KOTA JOGOKERTO", dst.) dihapus atas permintaan;
+                // arah ke wilayah sebelah tetap terlihat lewat panah di tepi minimap.
                 BuildDecor(r);
                 BuildCritters(r, root);
                 BuildStreet(r, root);
                 BuildFill(r);
                 BuildIndo(r, root);
+                UncoverSigns(r, root);   // terakhir: semua pohon, hiasan & bangunan sudah ada
                 root.gameObject.SetActive(false);
             }
             SetRegion(Region.DesaSukaMakmur);
@@ -261,7 +262,6 @@ namespace PixelAdventure.LifeSim
                     break;
                 case Kind.Halte:
                     Make("lc_bus_stop", x, y, "Halte", Order(y));
-                    _buildHaltes.Add(HalteRect(x, y));
                     AddObstacle(x - 0.9f, y, 1.8f, 0.6f);
                     WallPlate(name, x, y, 3.25f, 4.8f, PlateStyle.Halte);
                     spot = new Vector2(x + 1.4f, y - 0.3f);
@@ -363,7 +363,6 @@ namespace PixelAdventure.LifeSim
                     break;
 
                 case Region.PasarRamaiJaya:
-                    PostSign("Pasar Ramai Jaya", 48f, 22.6f, PlateStyle.Tempat);
                     for (int row = 0; row < 2; row++)
                         for (int col = 0; col < 5; col++)
                             Building("lc_market_stall", 14f + col * 17f, 8f + row * 9f, 1f, 6.4f, 2.8f);
@@ -498,67 +497,6 @@ namespace PixelAdventure.LifeSim
         }
 
         /// <summary>Papan bertiang untuk tempat terbuka dan nama jalan.</summary>
-        /// <summary>Papan jalan di ujung kiri/kanan jalan utama: menunjuk wilayah sebelah (bisa dicapai jalan kaki).</summary>
-        void BuildEdgeSigns(Region r)
-        {
-            if (!PulangWorld.EdgeRoadTop.TryGetValue(r, out float top)) return;
-            float y = top + 0.9f;
-            if (PulangWorld.EdgeLeft.TryGetValue(r, out Region l))
-            {
-                string title = "< " + PulangWorld.RegionNames[l];
-                PostSign(title, FreeEdgeSignX(title, 3.2f, y, 1f), y, PlateStyle.Jalan);
-            }
-            if (PulangWorld.EdgeRight.TryGetValue(r, out Region rr))
-            {
-                string title = PulangWorld.RegionNames[rr] + " >";
-                PostSign(title, FreeEdgeSignX(title, Width - 3.2f, y, -1f), y, PlateStyle.Jalan);
-            }
-        }
-
-        // ------------------------------------------------------------------ halte & papan ujung jalan
-
-        /// <summary>Kotak tampilan halte di wilayah yang sedang dibangun (atap + papan nama di atasnya).</summary>
-        readonly List<Rect> _buildHaltes = new List<Rect>();
-
-        /// <summary>Gambar halte 80x64 px (5 x 4 unit) berpivot di tengah bawah, ditambah papan nama di atap.</summary>
-        static Rect HalteRect(float x, float y) => new Rect(x - 2.6f, y, 5.2f, 5.6f);
-
-        /// <summary>Lebar papan bertiang (unit) untuk judul ini, sama dengan perhitungan CreateSign.</summary>
-        float SignWidth(string title, float maxWidth = 5.2f)
-        {
-            int maxChars = Mathf.Max(6, Mathf.FloorToInt((maxWidth * PixelArt.PPU - 8f) / CharPx));
-            int textW = 0;
-            foreach (string line in WrapSign(title.ToUpperInvariant(), maxChars)) textW = Mathf.Max(textW, line.Length * CharPx + 2);
-            return (textW + 8) / PixelArt.PPU;
-        }
-
-        /// <summary>
-        /// Posisi x papan ujung jalan yang tidak tertutup halte atau benda lain yang berdiri di depannya.
-        /// Mulai dari posisi biasa di dekat ujung peta, lalu bergeser ke dalam (arah <paramref name="inward"/>)
-        /// sampai bebas. Benda "di depan" = alasnya sedikit lebih rendah dari kaki papan sehingga digambar
-        /// di atas papan; benda di belakang (alas lebih tinggi) tidak menutupi papan.
-        /// </summary>
-        float FreeEdgeSignX(string title, float startX, float y, float inward)
-        {
-            float half = SignWidth(title) * 0.5f + 0.25f;
-            for (float x = startX; Mathf.Abs(x - startX) <= 18f; x += inward * 0.5f)
-            {
-                if (x - half < 0.3f || x + half > Width - 0.3f) continue;   // papan tidak boleh keluar peta
-                if (!SignBlocked(x, half, y)) return x;
-            }
-            return startX;
-        }
-
-        bool SignBlocked(float x, float half, float y)
-        {
-            float l = x - half, r = x + half;
-            foreach (var h in _buildHaltes)
-                if (h.xMax > l && h.xMin < r && h.yMin < y + 0.6f && h.yMax > y) return true;
-            foreach (var o in _buildObstacles)
-                if (o.xMax > l && o.xMin < r && o.yMin < y + 0.3f && o.yMin > y - 6f) return true;
-            return false;
-        }
-
         void PostSign(string title, float x, float y, PlateStyle style)
         {
             AddObstacle(x - 0.12f, y, 0.24f, 0.2f);
@@ -650,6 +588,49 @@ namespace PixelAdventure.LifeSim
                     c.a = a;
                     part.color = c;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Papan nama tidak boleh tertutup. Dulu papan ujung jalan dicek sebelum pohon, lampu, umbul-umbul,
+        /// dan isi wilayah lain dibangun, dan papan di dinding bangunan tidak dicek sama sekali, sehingga
+        /// sebagian papan tertutup benda yang digambar di depannya. Dipanggil setelah wilayah selesai
+        /// dibangun (masih aktif, jadi batas gambar sudah benar): papan yang tertimpa gambar lain
+        /// dinaikkan urutan gambarnya tepat di atas benda penutup tersebut.
+        /// </summary>
+        void UncoverSigns(Region r, Transform root)
+        {
+            var signParts = new HashSet<SpriteRenderer>();
+            foreach (var s in _signs)
+                if (s.Region == r) foreach (var p in s.Parts) signParts.Add(p);
+            if (signParts.Count == 0) return;
+
+            var others = new List<SpriteRenderer>();
+            foreach (var sr in root.GetComponentsInChildren<SpriteRenderer>(true))
+                if (sr.sprite != null && !signParts.Contains(sr) && sr.sortingOrder > -2900) others.Add(sr);   // tanpa tanah
+
+            foreach (var s in _signs)
+            {
+                if (s.Region != r || s.Parts.Length == 0) continue;
+                var board = s.Parts[0];
+                Bounds b = board.bounds;
+                float area = b.size.x * b.size.y;
+                if (area <= 0f) continue;
+
+                int top = board.sortingOrder;
+                foreach (var o in others)
+                {
+                    if (o.sortingOrder < board.sortingOrder || o.sortingLayerID != board.sortingLayerID) continue;
+                    if (o.color.a < 0.05f) continue;
+                    Bounds ob = o.bounds;
+                    float ix = Mathf.Min(b.max.x, ob.max.x) - Mathf.Max(b.min.x, ob.min.x);
+                    float iy = Mathf.Min(b.max.y, ob.max.y) - Mathf.Max(b.min.y, ob.min.y);
+                    if (ix <= 0f || iy <= 0f || ix * iy < area * 0.08f) continue;   // hanya tersentuh tepi: abaikan
+                    top = Mathf.Max(top, o.sortingOrder + 1);
+                }
+                if (top == board.sortingOrder) continue;
+                int shift = top - board.sortingOrder;
+                foreach (var p in s.Parts) p.sortingOrder += shift;   // teks tetap di atas papannya
             }
         }
 

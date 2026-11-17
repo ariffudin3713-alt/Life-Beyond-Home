@@ -22,7 +22,9 @@ namespace PixelAdventure.LifeSim
             }
             StartCoroutine(DoorRoutine(() =>
             {
-                Vector2 inside = _world.EnterInterior(loc);
+                // Bila perabot menimpa titik masuk, geser ke titik kosong terdekat agar tidak tersangkut.
+                Vector2 entry = _world.EnterInterior(loc);
+                Vector2 inside = _world.NearestStandable(entry) ?? entry;
                 _player.Teleport(inside.x, inside.y);
                 if (_cameraRig != null) { _cameraRig.Fixed = _world.InteriorCenter; _cameraRig.Snap(); }
                 _hud.SetMinimapVisible(false);

@@ -83,7 +83,6 @@ namespace PixelAdventure.LifeSim
             BuildEnding();
             BuildJournal();
             BuildWorldUI();
-            BuildQuestCompass();
             BuildTasks();
             BuildInventory();
             BuildTablet();
@@ -163,6 +162,11 @@ namespace PixelAdventure.LifeSim
             _affFill = Solid(_hudGroup, "AffFill", new Color(1f, 0.40f, 0.58f, 1f), 3999);
             _boltIcon = Make(_hudGroup, PixelArt.Get("lc_icon_bolt"), "Bolt", 4001);
             _boltIcon.transform.localScale = Vector3.one * 1.05f;
+            // Bar energi diganti LAPAR & HAUS (energi tetap terlihat di inventori).
+            _boltIcon.gameObject.SetActive(false);
+            _energyBar.gameObject.SetActive(false);
+            _energyFill.gameObject.SetActive(false);
+            BuildNeedBars();
             _heartIcon = Make(_hudGroup, PixelArt.Get("lc_icon_heart"), "Heart", 4001);
             _heartIcon.transform.localScale = Vector3.one * 1.0f;
             _affNameText = Text(_hudGroup, "AffName", "LV 1", 1, Pink,
@@ -566,24 +570,23 @@ namespace PixelAdventure.LifeSim
             // ---------------- top right bars
             float right = halfW - 0.28f;
             float barsLeft = right - 8.4f;
-            SetRect(_barsPanel, right - 4.2f, top - 1.38f, 8.4f, 2.76f);
+            const float barsH = 3.5f;
+            SetRect(_barsPanel, right - 4.2f, top - barsH * 0.5f, 8.4f, barsH);
 
             float barX = barsLeft + 1.28f;
             float barW = 6.62f;
-            SetRow(left: barX, y: top - 0.62f, width: barW, height: 0.34f,
-                icon: _boltIcon, bg: _energyBar, fill: _energyFill, ratio: _energyRatio,
-                iconX: barsLeft + 0.52f);
-            SetRow(left: barX, y: top - 1.50f, width: barW, height: 0.34f,
+            LayoutNeedBars(barsLeft, right, top);   // baris 1-2: LAPAR, HAUS
+            SetRow(left: barX, y: top - 2.12f, width: barW, height: 0.34f,
                 icon: _heartIcon, bg: _affBar, fill: _affFill, ratio: _affectionRatio,
                 iconX: barsLeft + 0.52f);
             _affNameText.transform.localPosition =
-                new Vector3(right - 0.55f, top - 2.12f, 0f);
+                new Vector3(right - 0.55f, top - 2.82f, 0f);
 
             // Panel status tidak bisa diklik, tetapi klik di atasnya tidak boleh menjadi "jalan ke sini".
             if (PlayHitsOn)
             {
                 Hit(UiHit.Blocker, 0, new Rect(left, top - statsH, _statsW, statsH), 0, false);
-                Hit(UiHit.Blocker, 1, new Rect(right - 8.4f, top - 2.76f, 8.4f, 2.76f), 0, false);
+                Hit(UiHit.Blocker, 1, new Rect(right - 8.4f, top - barsH, 8.4f, barsH), 0, false);
             }
 
             // ---------------- toast

@@ -204,6 +204,29 @@ namespace PixelAdventure.LifeSim
             if (_story.Data != null) SyncNight();
         }
 
+        // ------------------------------------------------------------------ simpan saat keluar
+
+        /// <summary>
+        /// Simpan otomatis saat aplikasi ditutup / dipindah ke latar belakang (di HP sistem bisa
+        /// mematikan game tanpa peringatan). Hanya di layar yang datanya utuh: tidak saat adegan,
+        /// mini-game kerja, atau transisi (Busy) yang sedang mengubah data di tengah jalan.
+        /// </summary>
+        void AutoSaveOnExit()
+        {
+            if (_story == null || _story.Data == null || D.state == StoryState.NameEntry) return;
+            switch (_state)
+            {
+                case State.Playing: case State.Pause: case State.Journal: case State.Tasks:
+                case State.Inventory: case State.Tablet: case State.Profile: case State.Guide:
+                case State.Contacts: case State.WorldMap: case State.Settings:
+                    D.Save();
+                    break;
+            }
+        }
+
+        void OnApplicationPause(bool paused) { if (paused) AutoSaveOnExit(); }
+        void OnApplicationQuit() => AutoSaveOnExit();
+
         /// <summary>Layar yang sedang terbuka bisa ditutup dengan tombol X (sama dengan ESC)?</summary>
         bool CanCloseScreen()
         {
@@ -253,7 +276,9 @@ namespace PixelAdventure.LifeSim
 
         void UpdatePlaying(float dt)
         {
-            _clock += dt * ((_clock < 360f || _clock >= 1200f) ? NightMinutesPerSecond : DayMinutesPerSecond);
+            float gameMinutes = dt * ((_clock < 360f || _clock >= 1200f) ? NightMinutesPerSecond : DayMinutesPerSecond);
+            _clock += gameMinutes;
+            TickNeeds(gameMinutes);   // lapar & haus berkurang seiring waktu
             if (_clock >= 1440f)
             {
                 PassOut();
@@ -736,6 +761,7 @@ namespace PixelAdventure.LifeSim
             int need = PulangJobs.ExpForNextLevel(D.level);
             int expPct = Mathf.Clamp(Mathf.RoundToInt(D.exp * 100f / need), 0, 100);
             _hud.Refresh(D.day, D.minutes, D.money, D.energy, expPct, "LV " + D.level, CurrentHint());
+            _hud.SetNeeds(D.hunger, D.thirst);
             _hud.SetSubline("TABUNGAN " + Rp(D.savings));
             if (_world.InInterior) { _hud.SetQuestTargets(null); _hud.SetMinimapVisible(false); }   // di dalam bangunan: tanpa minimap & penunjuk
             else RefreshMinimap();
