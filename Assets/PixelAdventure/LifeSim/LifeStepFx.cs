@@ -106,7 +106,7 @@ namespace PixelAdventure.LifeSim
                     // Taman Pelangi & Alun-Alun berumput; sisanya jalan & paving.
                     float tx = (p.x - 18f) / 14f, ty = (p.y - 58f) / 10f;
                     if (tx * tx + ty * ty < 1f) return Surface.Grass;
-                    if (In(p, 66f, 48f, 28f, 22f)) return Surface.Grass;
+                    if (In(p, 63.5f, 50f, 32f, 22f)) return Surface.Grass;
                     return Surface.Hard;
                 case Region.PasarRamaiJaya:
                     return Surface.Hard;

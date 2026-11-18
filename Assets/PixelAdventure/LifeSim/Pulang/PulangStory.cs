@@ -238,13 +238,28 @@ namespace PixelAdventure.LifeSim.Pulang
             if (!HasSlot(slot)) return null;
             try
             {
-                var data = JsonUtility.FromJson<PulangSaveData>(PlayerPrefs.GetString(SlotKey(slot)));
+                string json = ExtractJson(PlayerPrefs.GetString(SlotKey(slot)));
+                if (json == null) return null;
+                var data = JsonUtility.FromJson<PulangSaveData>(json);
                 // Simpanan tanpa field "version" (sangat lama) dianggap versi 1.
-                if (data != null && !PlayerPrefs.GetString(SlotKey(slot)).Contains("\"version\"")) data.version = 1;
+                if (data != null && !json.Contains("\"version\"")) data.version = 1;
                 data?.Migrate();
                 return data;
             }
             catch (Exception) { return null; }
+        }
+
+        /// <summary>
+        /// Ambil objek JSON {...} dari isi slot. Simpanan yang ditulis alat luar kadang tercampur teks
+        /// lain (mis. SLOT 2 berisi baris peringatan compiler sebelum JSON-nya) sehingga JsonUtility gagal
+        /// dan slot tidak bisa dimuat. Null bila tidak ada JSON sama sekali (slot benar-benar rusak).
+        /// </summary>
+        static string ExtractJson(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+            int start = raw.IndexOf("{\"", StringComparison.Ordinal);
+            int end = raw.LastIndexOf('}');
+            return start >= 0 && end > start ? raw.Substring(start, end - start + 1) : null;
         }
 
         /// <summary>Muat slot dan jadikan slot aktif.</summary>
@@ -528,7 +543,8 @@ namespace PixelAdventure.LifeSim.Pulang
                 EnterScene = "ending_pulang",
                 Objectives = new[] { Scene("ending_pulang", "") } },
 
-            new QuestDef { State = StoryState.TheEnd, Chapter = Chapter.Ending, Title = "THE END" },
+            // Setelah tamat: bebas bermain, tanpa tujuan misi (judul ini tampil sebagai petunjuk di HUD).
+            new QuestDef { State = StoryState.TheEnd, Chapter = Chapter.Ending, Title = "Tamat - Hidup terus berjalan" },
         };
 
         static readonly Dictionary<StoryState, QuestDef> Quests = BuildIndex();

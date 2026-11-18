@@ -15,7 +15,7 @@ namespace PixelAdventure.LifeSim
         string ClockLabel()
         {
             int hh = D.minutes / 60, mm = D.minutes % 60;
-            return "HARI " + D.day + "  " + hh.ToString("00") + ":" + mm.ToString("00") + "  " + LifeHud.PhaseFor(D.minutes);
+            return "HARI " + D.day + "  " + GameCalendar.ShortDate(D.day) + "  " + hh.ToString("00") + ":" + mm.ToString("00") + "  " + LifeHud.PhaseFor(D.minutes);
         }
 
         void OpenJournal()

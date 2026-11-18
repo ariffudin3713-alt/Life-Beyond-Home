@@ -248,12 +248,29 @@ namespace PixelAdventure.LifeSim
             }
         }
 
+        /// <summary>
+        /// Misi sampingan yang sedang difokuskan: yang paling dulu diambil dan belum selesai.
+        /// Selama ada, minimap & penunjuk HANYA menunjukkan misi ini (misi utama, kerja, dan misi
+        /// sampingan lain disembunyikan dulu) agar pemain tidak bingung. Null = tidak ada.
+        /// </summary>
+        SideQuestDef FocusedSideQuest(out SideQuestProgress progress)
+        {
+            foreach (var pair in ActiveSideQuests()) { progress = pair.Value; return pair.Key; }
+            progress = null;
+            return null;
+        }
+
         /// <summary>Tujuan misi sampingan di wilayah ini (penunjuk & minimap).</summary>
         void AddSideGoals(Region here)
         {
-            foreach (var pair in ActiveSideQuests())
+            foreach (var pair in ActiveSideQuests()) AddSideGoal(here, pair.Key, pair.Value);
+        }
+
+        /// <summary>Tujuan langkah misi sampingan yang sedang berjalan di wilayah ini.</summary>
+        void AddSideGoal(Region here, SideQuestDef q, SideQuestProgress p)
+        {
             {
-                var s = pair.Key.Steps[pair.Value.step];
+                var s = q.Steps[p.step];
                 switch (s.Event)
                 {
                     case StoryEvent.Talk:

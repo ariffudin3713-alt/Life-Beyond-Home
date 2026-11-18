@@ -14,6 +14,11 @@ namespace PixelAdventure.LifeSim
         int _menuSelected;
         int _menuFitChars;   // 0 = muat semua; >0 = batas huruf per pilihan di layar sempit
 
+        // Gambar pratinjau pilihan yang disorot (mis. pakaian di toko). Kosong = menu teks biasa.
+        SpriteRenderer _menuPreview, _menuPreviewFrame;
+        readonly List<string> _menuIcons = new List<string>();
+        const float MenuPreviewW = 3.6f;   // lebar kolom gambar di kanan panel
+
         // ---------------------------------------------------------------- title fields
 
         SpriteRenderer _titlePanel, _titleName, _titleSub, _titleInfo, _titlePrompt;
@@ -51,11 +56,38 @@ namespace PixelAdventure.LifeSim
                     new Vector2(0f, 0.5f), 4012);
             _menuHint = Text(_menuGroup, "Hint", "E / KLIK - OK   ESC - BATAL", 1, Soft,
                 new Vector2(0.5f, 0.5f), 4012);
+            _menuPreviewFrame = Panel(_menuGroup, "PreviewFrame", "lc_panel_soft", 4011);
+            var preview = new GameObject("Preview");
+            preview.transform.SetParent(_menuGroup, false);
+            _menuPreview = preview.AddComponent<SpriteRenderer>();
+            _menuPreview.sharedMaterial = PixelArt.SpriteMaterial;
+            _menuPreview.sortingOrder = 4013;
             _menuGroup.gameObject.SetActive(false);
+        }
+
+        bool HasMenuIcons
+        {
+            get
+            {
+                foreach (string k in _menuIcons) if (!string.IsNullOrEmpty(k)) return true;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gambar per pilihan menu (kunci sprite; null = tanpa gambar), ditampilkan besar di kolom
+        /// kanan untuk pilihan yang sedang disorot. Panggil sesudah ShowMenu; ShowMenu berikutnya mengosongkannya.
+        /// </summary>
+        public void SetMenuIcons(List<string> icons)
+        {
+            _menuIcons.Clear();
+            if (icons != null) _menuIcons.AddRange(icons);
+            ApplyMenu();
         }
 
         public void ShowMenu(string title, List<string> options, int selected)
         {
+            _menuIcons.Clear();
             _menuOptionList.Clear();
             if (options != null) _menuOptionList.AddRange(options);
             _menuCount = Mathf.Min(_menuOptionList.Count, _menuOptions.Length);
@@ -87,12 +119,20 @@ namespace PixelAdventure.LifeSim
                 Color color = i == _menuSelected ? Gold : (quest ? QuestColor : Ink);
                 SetText(_menuOptions[i], label, color, 1, new Vector2(0f, 0.5f));
             }
+
+            // Pratinjau pilihan yang disorot; kolom gambar tetap ada (bingkai kosong) untuk pilihan tanpa gambar.
+            bool icons = HasMenuIcons;
+            _menuPreviewFrame.gameObject.SetActive(icons);
+            string key = icons && _menuSelected < _menuIcons.Count ? _menuIcons[_menuSelected] : null;
+            _menuPreview.sprite = string.IsNullOrEmpty(key) ? null : PixelArt.Get(key);
+            _menuPreview.gameObject.SetActive(_menuPreview.sprite != null);
         }
 
         public void HideMenu()
         {
             if (_menuGroup != null) _menuGroup.gameObject.SetActive(false);
             _menuOptionList.Clear();
+            _menuIcons.Clear();
             _menuCount = 0;
         }
 
@@ -104,22 +144,45 @@ namespace PixelAdventure.LifeSim
             float widest = _menuTitle.sprite != null ? _menuTitle.sprite.bounds.size.x : 0f;
             for (int i = 0; i < _menuCount; i++)
                 widest = Mathf.Max(widest, (_menuOptionList[i].Length + 2) * UiCharW);
-            float maxW = halfW * 2f - 1f;
+            // Menu bergambar: kolom pratinjau di kanan, kolom teks memakai sisa lebar.
+            bool icons = HasMenuIcons;
+            float extra = icons ? MenuPreviewW : 0f;
+            float maxW = halfW * 2f - 1f - extra;
             float w = Mathf.Min(Mathf.Max(10.8f, widest + 1.3f), maxW);
             int fit = widest + 1.3f > maxW ? CharsFor(w - 1.1f) : 0;
             if (fit != _menuFitChars) { _menuFitChars = fit; ApplyMenu(); }
             float h = 1.25f + _menuCount * 0.72f + 0.62f;
+            if (icons) h = Mathf.Max(h, 5.4f);   // cukup tinggi untuk gambar tokoh
             float cx = 0f;
             float cy = 0f;
-            SetRect(_menuPanel, cx, cy, w, h);
-            CloseAt(cx + w * 0.5f, cy + h * 0.5f, 3);
-            float lx = cx - w * 0.5f + 0.55f;
+            float totalW = w + extra;
+            SetRect(_menuPanel, cx, cy, totalW, h);
+            CloseAt(cx + totalW * 0.5f, cy + h * 0.5f, 3);
+            float lx = cx - totalW * 0.5f + 0.55f;
+            float textCx = cx - totalW * 0.5f + w * 0.5f;
             _menuTitle.transform.localPosition = new Vector3(lx, cy + h * 0.5f - 0.5f, 0f);
             for (int i = 0; i < _menuOptions.Length; i++)
             {
                 float oy = cy + h * 0.5f - 1.18f - i * 0.72f;
                 _menuOptions[i].transform.localPosition = new Vector3(lx, oy, 0f);
-                if (i < _menuCount) Hit(UiHit.Menu, i, RectAt(cx, oy, w - 0.6f, 0.68f), 3);
+                if (i < _menuCount) Hit(UiHit.Menu, i, RectAt(textCx, oy, w - 0.6f, 0.68f), 3);
+            }
+            if (icons)
+            {
+                float px = cx + totalW * 0.5f - extra * 0.5f - 0.25f;
+                float fh = h - 1.9f;
+                float py = cy + 0.05f;
+                SetRect(_menuPreviewFrame, px, py, extra - 0.3f, fh);
+                if (_menuPreview.sprite != null)
+                {
+                    // Skala bilangan bulat agar piksel tetap tajam.
+                    Vector2 native = _menuPreview.sprite.bounds.size;
+                    float fitH = (fh - 0.5f) / Mathf.Max(0.01f, native.y);
+                    float fitW = (extra - 0.8f) / Mathf.Max(0.01f, native.x);
+                    float scale = Mathf.Max(1f, Mathf.Floor(Mathf.Min(fitH, fitW)));
+                    _menuPreview.transform.localScale = new Vector3(scale, scale, 1f);
+                    _menuPreview.transform.localPosition = new Vector3(px, py, 0f);
+                }
             }
             _menuHint.transform.localPosition = new Vector3(cx, cy - h * 0.5f + 0.36f, 0f);
             SetHint(_menuHint, "E / KLIK - OK   ESC - BATAL", Soft);

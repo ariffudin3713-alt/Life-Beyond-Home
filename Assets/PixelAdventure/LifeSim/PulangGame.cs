@@ -286,15 +286,26 @@ namespace PixelAdventure.LifeSim
             }
             D.minutes = Mathf.Clamp((int)_clock, 0, 1439);
 
-            if (HandleTap()) return;                      // ketuk / klik: jalan ke titik atau objek
-            bool onMotor = ApplyVehicleSpeed();
+            SyncSeat();
+            bool onMotor = false;
+            if (_player.SitBusy)
+            {
+                // Duduk: ketukan di dunia = berdiri (UpdateSeated), tapi tombol HUD tetap berfungsi.
+                if (LifeInput.PointerTapped && _hud.PointerOverUi && HandleTap()) return;
+            }
+            else
+            {
+                if (HandleTap()) return;                  // ketuk / klik: jalan ke titik atau objek
+                onMotor = ApplyVehicleSpeed();
+            }
             _player.Tick(dt, !onMotor && D.energy > RunMinEnergy);   // di atas motor tidak perlu berlari
             AfterTapMove();
             UpdateRunEnergy(dt);
             if (!_world.InInterior)
             {
-                D.posX = _player.Feet.x;
-                D.posY = _player.Feet.y;
+                // Saat duduk simpan titik depan bangku, bukan titik duduk (di dalam penghalang bangku).
+                D.posX = _player.StandSpot.x;
+                D.posY = _player.StandSpot.y;
                 FaceNearbyNpcs();
                 _world.UpdateSigns(_player.Feet);
                 CheckArrival();
@@ -309,7 +320,7 @@ namespace PixelAdventure.LifeSim
                 if (_state != State.Playing) return;
             }
 
-            UpdateInteraction();
+            if (_player.SitBusy) UpdateSeated(); else UpdateInteraction();
             SyncHud();
 
             if (LifeInput.JournalPressed) { OpenJournal(); return; }
@@ -319,8 +330,14 @@ namespace PixelAdventure.LifeSim
             if (LifeInput.GuidePressed) { OpenGuide(false); return; }
             if (LifeInput.MapPressed) { OpenWorldMap(false); return; }
             if (LifeInput.PausePressed) { OpenPause(); return; }
-            if (LifeInput.VehiclePressed && _inputLock <= 0f) { ToggleVehicle(); return; }
-            if (LifeInput.InteractPressed && _inputLock <= 0f) Interact();
+            if (LifeInput.VehiclePressed && _inputLock <= 0f)
+            {
+                if (_player.SitBusy) { GameAudio.Play("error", 0.4f); _hud.ShowToast("BERDIRI DULU (E) SEBELUM MEMANGGIL KENDARAAN"); }
+                else ToggleVehicle();
+                return;
+            }
+            // Saat duduk, E sudah dipakai UpdateSeated untuk berdiri: jangan diteruskan ke interaksi lain.
+            if (LifeInput.InteractPressed && _inputLock <= 0f && !_player.SitBusy) Interact();
         }
 
         // ------------------------------------------------------------------ cerita
@@ -365,8 +382,13 @@ namespace PixelAdventure.LifeSim
         void UpdateEnding()
         {
             if (_inputLock > 0f || !(LifeInput.InteractPressed || LifeInput.PointerTapped)) return;
-            PulangSaveData.Delete();         // tidak ada ending lain; mulai lagi dari awal
-            ShowTitle();
+            // Simpanan TIDAK dihapus: setelah tamat pemain tetap bebas bermain (state TheEnd tanpa misi).
+            // Misi sampingan baru memang tidak ditawarkan sejak Chapter 6 (lihat SideOfferable).
+            _hud.HideEnding();
+            GameAudio.Play("confirm", 0.5f);
+            D.Save();
+            EnterPlaying();
+            _hud.ShowToast("TAMAT - KAMU MASIH BISA MENJALANI HIDUP DI DUNIA INI");
         }
 
         // ------------------------------------------------------------------ dialog
@@ -685,7 +707,7 @@ namespace PixelAdventure.LifeSim
             for (float t = 1f; t > 0f; t -= Time.unscaledDeltaTime * 2f) { _hud.SetFade(t); yield return null; }
             _hud.SetFade(0f);
             EnterPlaying();
-            _hud.ShowToast(("HARI " + D.day + " - " + message).ToUpperInvariant());
+            _hud.ShowToast(("HARI " + D.day + " (" + GameCalendar.CompactDate(D.day) + ") - " + message).ToUpperInvariant());
         }
 
         void PassOut() => SleepUntilMorning("Kamu tertidur kelelahan", 60);
@@ -750,7 +772,8 @@ namespace PixelAdventure.LifeSim
 
             if (_state == State.Title || _state == State.NameEntry || _state == State.Ending) { GameAudio.PlayAmbience(null); return; }
             GameAudio.PlayAmbience(AmbienceKey(dark));
-            bool sad = _story.Data.state >= StoryState.Ch6KabarDuka;
+            // Lagu duka hanya selama Chapter 6 & adegan ending; setelah tamat kembali ke lagu biasa.
+            bool sad = _story.Data.state >= StoryState.Ch6KabarDuka && _story.Data.state < StoryState.TheEnd;
             GameAudio.PlayMusic(sad ? 5 : MusicFor(m));
         }
 
@@ -760,7 +783,12 @@ namespace PixelAdventure.LifeSim
         {
             int need = PulangJobs.ExpForNextLevel(D.level);
             int expPct = Mathf.Clamp(Mathf.RoundToInt(D.exp * 100f / need), 0, 100);
-            _hud.Refresh(D.day, D.minutes, D.money, D.energy, expPct, "LV " + D.level, CurrentHint());
+            // Panel kiri atas mengikuti misi yang sedang difokuskan (sama dengan minimap):
+            // misi sampingan yang diambil dari NPC dulu, setelah selesai kembali ke misi utama.
+            var side = FocusedSideQuest(out SideQuestProgress sideProgress);
+            _hud.SetQuestLabel(side != null ? "MISI DARI " + NpcName(side.Giver) + " - " + side.Title : "MISI SAAT INI");
+            _hud.Refresh(D.day, D.minutes, D.money, D.energy, expPct, "LV " + D.level,
+                side != null ? SideHint(side, sideProgress) : CurrentHint());
             _hud.SetNeeds(D.hunger, D.thirst);
             _hud.SetSubline("TABUNGAN " + Rp(D.savings));
             if (_world.InInterior) { _hud.SetQuestTargets(null); _hud.SetMinimapVisible(false); }   // di dalam bangunan: tanpa minimap & penunjuk
@@ -775,6 +803,18 @@ namespace PixelAdventure.LifeSim
                     return Short(PulangProfile.Format(q.Objectives[i].Text));
             if (q.GateText != null) return Short(q.GateText);
             return Short(PulangProfile.Format(q.Title));
+        }
+
+        /// <summary>Langkah misi sampingan saat ini + tempatnya + progres, mis. "BELI OBAT - APOTEK SEHAT (1/2)".</summary>
+        string SideHint(SideQuestDef q, SideQuestProgress p)
+        {
+            var s = q.Steps[p.step];
+            string text = PulangProfile.Format(s.Text);
+            string where = SideWhere(s, _world.CurrentRegion);
+            if (!string.IsNullOrEmpty(where) && text.IndexOf(where, StringComparison.OrdinalIgnoreCase) < 0)
+                text += " - " + where;
+            if (s.Count > 1) text += " (" + p.count + "/" + s.Count + ")";
+            return Short(text);
         }
 
         static string Short(string s)

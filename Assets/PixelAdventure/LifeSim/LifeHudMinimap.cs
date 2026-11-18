@@ -65,6 +65,9 @@ namespace PixelAdventure.LifeSim
         /// <summary>Batas minimap (koordinat HUD) untuk penunjuk misi agar tidak menimpanya.</summary>
         float _miniEdgeRight = -999f, _miniEdgeTop = -999f;
 
+        /// <summary>Skala minimap kiri bawah (1 = ukuran asli).</summary>
+        const float MiniHudScale = 0.72f;
+
         struct MiniStyle
         {
             public Color Ground, Road;
@@ -223,7 +226,14 @@ namespace PixelAdventure.LifeSim
             // Kecil, di pojok kiri bawah layar. Susunan (atas -> bawah), semua rata pada tepi peta:
             //   judul wilayah | peta | ◀ KIRI ..... KANAN ▶ | garis | tujuan misi | F: BUKA PETA
             const float pad = 0.3f, titleH = 0.66f, rowH = 0.58f;
-            float mapW = Mathf.Min(5.4f, halfW * 0.4f);
+            // Seluruh minimap digambar di grup yang diperkecil (MiniHudScale) dan berjangkar di pojok kiri bawah;
+            // tata letak di bawah memakai koordinat lokal grup (pojok kiri bawah = 0,0).
+            float ms = MiniHudScale;
+            float cornerL = -halfW + 0.28f, cornerB = -halfH + 0.28f;
+            _minimapGroup.localPosition = new Vector3(cornerL, cornerB, 0f);
+            if (!Mathf.Approximately(_minimapGroup.localScale.x, ms)) _minimapGroup.localScale = new Vector3(ms, ms, 1f);
+
+            float mapW = Mathf.Min(5.4f, halfW * 0.4f / ms);
             float mapH = mapW * (LifeWorld.Height / LifeWorld.Width);
             float w = mapW + pad * 2f;
 
@@ -236,14 +246,15 @@ namespace PixelAdventure.LifeSim
             bool guideOn = guide >= 0 && guideDist > 1.6f;
             int footRows = guideOn ? 2 : 1;
             float h = titleH + mapH + 0.06f + exitRows * MiniExitRowH + 0.1f + footRows * rowH + 0.14f;
-            float left = -halfW + 0.28f;
-            float bottom = -halfH + 0.28f;
+            float left = 0f;
+            float bottom = 0f;
             float top = bottom + h;
             float cx = left + w * 0.5f;
             float cy = bottom + h * 0.5f;
-            _miniEdgeRight = left + w;
-            _miniEdgeTop = top;
-            _miniRect = new Rect(left, bottom, w, h);
+            // Batas & zona klik dalam koordinat HUD (sudah memperhitungkan skala grup).
+            _miniEdgeRight = cornerL + w * ms;
+            _miniEdgeTop = cornerB + h * ms;
+            _miniRect = new Rect(cornerL, cornerB, w * ms, h * ms);
             if (PlayHitsOn) Hit(UiHit.Minimap, 0, _miniRect, 0);
 
             SetRect(_miniPanel, cx, cy, w, h);

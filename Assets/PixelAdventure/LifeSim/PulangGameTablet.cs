@@ -50,7 +50,7 @@ namespace PixelAdventure.LifeSim
             foreach (var a in TabletOrder) apps.Add(AppFor(a));
 
             int hh = D.minutes / 60, mm = D.minutes % 60;
-            string left = "HARI " + D.day + "  " + hh.ToString("00") + ":" + mm.ToString("00") + "  " +
+            string left = "HARI " + D.day + "  " + GameCalendar.CompactDate(D.day) + "  " + hh.ToString("00") + ":" + mm.ToString("00") + "  " +
                           LifeHud.PhaseFor(D.minutes);
             string right = "ENERGI " + D.energy + "%   " + Rp(D.money);
             _hud.ShowTablet("TABLET " + PulangProfile.Name, left, right, apps, _tabletIndex, _tabletMessage);

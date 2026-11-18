@@ -121,9 +121,16 @@ namespace PixelAdventure.LifeSim
                 c.Rect((9 + i * 3) * 16, 52 * 16, 2 * 16, 6, rainbow[i]);
 
             // Alun-Alun Merdeka
-            c.Rect(66 * 16, 48 * 16, 28 * 16, 22 * 16, PixelArt.Hex("3f8639"));
-            c.Rect(67 * 16, 49 * 16, 26 * 16, 20 * 16, Grass);
-            c.Ellipse(80 * 16, 59 * 16, 6 * 16, 4 * 16, PixelArt.Hex("b8b2a5"));
+            // Digeser ke atas (dasar y 50, sampai tepi atas peta) dan dilebarkan (x 63,5..95,5).
+            c.Rect(63 * 16 + 8, 50 * 16, 32 * 16, 22 * 16, PixelArt.Hex("3f8639"));
+            c.Rect(64 * 16 + 8, 51 * 16, 30 * 16, 21 * 16, Grass);
+            Color32 alunPave = PixelArt.Hex("b8b2a5"), alunEdge = PixelArt.Hex("a39d90");
+            c.Rect(79 * 16, 50 * 16, 2 * 16, 22 * 16, alunEdge);                 // jalan setapak utara-selatan
+            c.Rect(79 * 16 + 2, 50 * 16, 2 * 16 - 4, 22 * 16, alunPave);
+            c.Rect(64 * 16 + 8, 60 * 16 + 8, 30 * 16, 24, alunEdge);             // jalan setapak barat-timur
+            c.Rect(64 * 16 + 8, 60 * 16 + 10, 30 * 16, 20, alunPave);
+            c.Ellipse(80 * 16, 61 * 16, 7 * 16 + 2, 4 * 16 + 10, alunEdge);       // pelataran air mancur
+            c.Ellipse(80 * 16, 61 * 16, 7 * 16, 4 * 16 + 8, alunPave);
             Add(c, Vector2.zero, "ground_" + GroundKota);
         }
 

@@ -48,14 +48,15 @@ namespace PixelAdventure.LifeSim
                     Bins(A(56, 40.3f, 36, 0.4f));
                     Bins(A(4, 26.7f, 36, 0.5f), A(56, 26.7f, 36, 0.5f));
                     Bins(A(8, 46, 24, 5));
-                    Bins(A(68, 48, 24, 4));
-                    Inspect("lc_flag_pole", 1.2f, 4f, 0.4f, "BENDERA", FlagLine, A(78, 61, 4, 4), A(70, 48, 22, 18));
+                    Bins(A(65, 50.6f, 12, 2), A(83, 50.6f, 11, 2));
+                    Inspect("lc_flag_pole", 1.2f, 4f, 0.4f, "BENDERA", FlagLine, A(79.2f, 67.5f, 1.6f, 2.5f), A(66, 64, 26, 6));
                     Umbul(A(4, 40.3f, 36, 0.4f), 5, 7f);
                     Umbul(A(56, 40.3f, 38, 0.4f), 5, 7f);
                     Inspect("lc_becak", 2.8f, 2.3f, 0.5f, "BECAK", BecakLine, A(4, 40.3f, 36, 1.2f), A(56, 40.3f, 36, 1.2f));
                     Prop("lc_cat_sleep", 14.3f, 56.05f, false);                         // di bangku taman
+                    OccupySeatNear(new Vector2(14.6f, 56.6f), "kucing");               // kursi kanan dipakai kucing
                     Pet("lc_cat_sit", A(30, 41, 12, 8), A(2, 41, 94, 26));
-                    Litter(9, 101, A(0, 28.1f, 96, 1.7f), A(0, 38.2f, 96, 1.7f), A(6, 50, 24, 14), A(68, 50, 24, 18));
+                    Litter(9, 101, A(0, 28.1f, 96, 1.7f), A(0, 38.2f, 96, 1.7f), A(6, 50, 24, 14), A(65, 51, 29, 19));
                     break;
 
                 case Region.PasarRamaiJaya:
@@ -217,6 +218,7 @@ namespace PixelAdventure.LifeSim
         {
             var sr = Make(sprite, x, y, sprite, Order(y));
             if (solid) AddObstacle(x - fw * 0.5f, y, fw, fh);
+            if (sprite == "lc_bench") RegisterBench(x, y);   // bangku hiasan trotoar juga bisa diduduki
             return sr;
         }
 

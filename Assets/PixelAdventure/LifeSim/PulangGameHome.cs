@@ -90,7 +90,19 @@ namespace PixelAdventure.LifeSim
         static SlotView SlotViewFor(int slot)
         {
             var d = PulangSaveData.Peek(slot);
-            if (d == null) return new SlotView { Empty = true };
+            if (d == null)
+            {
+                // Ada data tapi tidak terbaca: tampilkan sebagai rusak (dulu terlihat "kosong" tapi tidak bisa dipakai).
+                if (!PulangSaveData.HasSlot(slot)) return new SlotView { Empty = true };
+                return new SlotView
+                {
+                    Empty = false,
+                    Line1 = "SIMPANAN RUSAK",
+                    Line2 = "Data slot ini tidak bisa dibaca",
+                    Line3 = "X / DEL / KLIK KANAN - HAPUS, LALU PAKAI UNTUK GAME BARU",
+                    Saved = "",
+                };
+            }
 
             string name = string.IsNullOrEmpty(d.playerName) ? PulangProfile.DefaultName : d.playerName;
             var q = PulangStory.QuestFor(d.state);
@@ -106,7 +118,7 @@ namespace PixelAdventure.LifeSim
                 // Baris 1: nama & bab (+ waktu simpan rata kanan), baris 2: misi, baris 3: keadaan.
                 Line1 = chapter.Length > 0 ? name + " - " + chapter : name,
                 Line2 = quest,
-                Line3 = "HARI " + d.day + "  " + hh.ToString("00") + ":" + mm.ToString("00") +
+                Line3 = "HARI " + d.day + " (" + GameCalendar.CompactDate(d.day) + ")  " + hh.ToString("00") + ":" + mm.ToString("00") +
                         "   " + Rp(d.money) + "   LV " + d.level,
                 Saved = d.savedAt,
             };

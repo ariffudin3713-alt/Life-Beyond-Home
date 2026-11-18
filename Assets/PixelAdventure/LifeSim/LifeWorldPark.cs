@@ -34,18 +34,11 @@ namespace PixelAdventure.LifeSim
                 Make("lc_flowerbed", p.x, p.y, "BedengBunga", Order(p.y));
                 AddObstacle(p.x - 1.1f, p.y, 2.2f, 0.5f);
             }
-            Make("lc_bench", 14.6f, 62.8f, "BangkuTaman", Order(62.8f));
-            Make("lc_bench", 21.4f, 62.8f, "BangkuTaman2", Order(62.8f));
+            Bench(14.6f, 62.8f, "BangkuTaman");
+            Bench(21.4f, 62.8f, "BangkuTaman2");
             Lamps(new[] { 15.4f, 53.8f, 20.6f, 63.6f });
 
-            // Alun-Alun Merdeka: bedeng bunga & bangku di sekitar air mancurnya
-            foreach (var p in new[] { new Vector2(77f, 54.4f), new Vector2(83f, 54.4f), new Vector2(77f, 63.8f), new Vector2(83f, 63.8f) })
-            {
-                Make("lc_flowerbed", p.x, p.y, "BedengAlun", Order(p.y));
-                AddObstacle(p.x - 1.1f, p.y, 2.2f, 0.5f);
-            }
-            Make("lc_bench", 75.6f, 61.4f, "BangkuAlun2", Order(61.4f));
-            Make("lc_bench", 84.4f, 61.4f, "BangkuAlun3", Order(61.4f));
+            BuildAlunAlun();
 
             LifeParkKids.Attach(_build, _buildObstacles, new[]
             {
@@ -53,6 +46,53 @@ namespace PixelAdventure.LifeSim
                 new Rect(13f, 55f, 10f, 7f),             // cincin air mancur
                 new Rect(13f, 55f, 16f, 7f),
             });
+        }
+
+        /// <summary>
+        /// Alun-Alun Merdeka (x 63,5..95,5, y 50..72): lapangan rumput dengan jalan setapak bersilang,
+        /// pelataran air mancur di tengah (80, 61), bangku di keempat sisi pelataran, lampu taman,
+        /// bedeng bunga, pohon peneduh di tepi, serta anak-anak & warga yang berjalan-jalan (siang).
+        /// Air mancur, bangku sisi kanan bawah, dan gerobak bakso dipasang di LifeWorld.BuildScenery.
+        /// </summary>
+        void BuildAlunAlun()
+        {
+            foreach (var p in new[]
+            {
+                new Vector2(68.5f, 53.4f), new Vector2(91.5f, 53.4f), new Vector2(68.5f, 68.6f), new Vector2(91.5f, 68.6f),
+                new Vector2(76.4f, 52.2f), new Vector2(83.6f, 52.2f), new Vector2(76.4f, 69.4f), new Vector2(83.6f, 69.4f),
+            })
+            {
+                Make("lc_flowerbed", p.x, p.y, "BedengAlun", Order(p.y));
+                AddObstacle(p.x - 1.1f, p.y, 2.2f, 0.5f);
+            }
+
+            // Bangku mengelilingi pelataran + di tepi jalan setapak barat-timur.
+            Bench(74.5f, 55.4f, "BangkuAlun2");
+            Bench(74.5f, 66.4f, "BangkuAlun3");
+            Bench(85.5f, 66.4f, "BangkuAlun4");
+            Bench(68.5f, 62.6f, "BangkuAlun5");
+            Bench(91.5f, 62.6f, "BangkuAlun6");
+            Bench(91.5f, 58.4f, "BangkuAlun8");
+
+            Lamps(new[] { 72f, 59.4f, 88f, 59.4f, 77.9f, 56.0f, 82.1f, 56.0f, 77.9f, 66.6f, 82.1f, 66.6f, 65.6f, 59.4f, 94.4f, 59.4f });
+            Trees(new[] { 65.6f, 52.0f, 94.2f, 52.0f, 65.6f, 66.0f, 94.2f, 66.0f, 72.0f, 70.4f, 88.0f, 70.4f, 65.6f, 70.6f, 94.2f, 70.6f });
+
+            // Pengunjung: anak-anak berlarian di rumput & pelataran, warga berjalan-jalan santai.
+            LifeParkKids.Attach(_build, _buildObstacles, new[]
+            {
+                new Rect(65.5f, 51.5f, 11f, 7.5f),
+                new Rect(83.5f, 51.5f, 10f, 7.5f),
+                new Rect(73.5f, 57f, 13f, 8f),
+                new Rect(65.5f, 63f, 11f, 6.5f),
+            });
+            LifeParkKids.Attach(_build, _buildObstacles, new[]
+            {
+                new Rect(64.5f, 51f, 30f, 19f),
+                new Rect(73f, 56.5f, 14f, 9f),
+                new Rect(64.5f, 59.8f, 30f, 2.4f),       // menyusuri jalan setapak barat-timur
+                new Rect(78.8f, 50.5f, 2.4f, 20f),       // menyusuri jalan setapak utara-selatan
+                new Rect(83.5f, 63f, 10f, 6.5f),
+            }, true);
         }
 
         /// <summary>Sprite diam beranimasi (air mancur, ayunan, jungkat-jungkit).</summary>
@@ -105,22 +145,26 @@ namespace PixelAdventure.LifeSim
         readonly List<Kid> _kids = new List<Kid>();
         List<Rect> _obstacles;
 
-        public static LifeParkKids Attach(Transform parent, List<Rect> obstacles, Rect[] areas)
+        /// <param name="adults">True = warga dewasa (ukuran penuh, berjalan pelan), false = anak-anak.</param>
+        public static LifeParkKids Attach(Transform parent, List<Rect> obstacles, Rect[] areas, bool adults = false)
         {
-            var c = new GameObject("AnakAnak").AddComponent<LifeParkKids>();
+            var c = new GameObject(adults ? "Pengunjung" : "AnakAnak").AddComponent<LifeParkKids>();
             c.transform.SetParent(parent, false);
             c._obstacles = obstacles;
             for (int i = 0; i < areas.Length; i++)
             {
                 var go = new GameObject("Anak" + i);
                 go.transform.SetParent(c.transform, false);
-                go.transform.localScale = Vector3.one * 0.72f;
+                go.transform.localScale = Vector3.one * (adults ? 1f : 0.72f);
                 var body = go.AddComponent<SpriteRenderer>();
                 body.sharedMaterial = PixelArt.SpriteMaterial;
+                string id = adults ? "warga" + (1 + (i * 3 + 2) % 6)
+                    : PixelArt.Sprites.ContainsKey("lc_anak1_down_0") ? "anak" + (1 + i % 3) : "warga" + (1 + (i * 2 + 1) % 6);
                 var k = new Kid
                 {
-                    T = go.transform, Body = body, Id = PixelArt.Sprites.ContainsKey("lc_anak1_down_0") ? "anak" + (1 + i % 3) : "warga" + (1 + (i * 2 + 1) % 6), Area = areas[i],
-                    Speed = Random.Range(1.4f, 2.1f), Wait = Random.Range(0f, 1.5f),
+                    T = go.transform, Body = body, Id = id, Area = areas[i],
+                    Speed = adults ? Random.Range(0.8f, 1.2f) : Random.Range(1.4f, 2.1f),
+                    Wait = adults ? Random.Range(0.5f, 3f) : Random.Range(0f, 1.5f),
                 };
                 k.Pos = k.Target = c.Pick(k.Area, k.Area.center);
                 c._kids.Add(k);

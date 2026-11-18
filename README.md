@@ -39,6 +39,7 @@ Semua sprite, UI, musik, dan efek suara dibuat saat runtime, tanpa aset eksterna
 | Chapter 5 | Pesan dari Ibu & kiriman kain batik (Quest 16), kerja bakti Kampung Cempaka (Quest 17), lalu kerja profesional & tabungan Rp2.000.000 |
 | Chapter 6 | Telepon kabar duka, Perjalanan Terakhir |
 | Ending | **PULANG** — satu-satunya ending |
+| Setelah tamat | Simpanan tetap ada; bebas bermain (kerja, jalan-jalan, kendaraan) tanpa misi utama / misi sampingan baru |
 
 Desa Suka Makmur terkunci sejak Chapter 1 sampai kabar duka. Lima karakter
 perempuan (Nabila, Kirana, Anindya, Melati, Citra) punya 10 episode kedekatan

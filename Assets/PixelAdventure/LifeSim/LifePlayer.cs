@@ -94,6 +94,7 @@ namespace PixelAdventure.LifeSim
         public void Teleport(float x, float y)
         {
             ClearPath();
+            Sit = SitPhase.None;   // pindah tempat (pintu, bus, tidur) = otomatis berdiri
             transform.position = new Vector3(x, y, 0f);
             _anim = 0f;
             _frame = 0;
@@ -138,6 +139,249 @@ namespace PixelAdventure.LifeSim
             _pathIndex = 0;
         }
 
+        // ------------------------------------------------------------------ duduk
+
+        public enum SitPhase { None, Sitting, Seated, Standing }
+
+        /// <summary>Fase duduk. Selain None, input jalan/lari diabaikan.</summary>
+        public SitPhase Sit { get; private set; }
+
+        /// <summary>Sedang duduk atau sedang transisi duduk/berdiri (gerak jalan terkunci).</summary>
+        public bool SitBusy => Sit != SitPhase.None;
+
+        /// <summary>Sudah duduk penuh (boleh berdiri lagi).</summary>
+        public bool IsSeated => Sit == SitPhase.Seated;
+
+        /// <summary>Posisi berdiri yang aman: titik depan bangku saat duduk, selain itu posisi kaki.</summary>
+        public Vector2 StandSpot => SitBusy ? _sitExit : Feet;
+
+        const float SitTweenTime = 0.22f;   // detik, transisi duduk / berdiri
+        const float SitHop = 0.18f;         // lompatan kecil saat naik / turun bangku
+        const int SitCropPx = 5;            // baris kaki yang disembunyikan pada pose duduk
+
+        Vector2 _sitFrom, _sitTo, _sitExit;
+        float _sitT;
+        int _sitOrder;
+        Sprite _sitSprite, _sitSource;
+
+        /// <summary>
+        /// Mulai duduk: pemain berbalik menghadap kamera lalu bergeser mulus ke <paramref name="seat"/>.
+        /// <paramref name="exit"/> = titik aman untuk berdiri nanti. False bila sedang berkendara / sudah duduk.
+        /// </summary>
+        public bool SitDown(Vector2 seat, Vector2 exit, int benchOrder)
+        {
+            if (SitBusy || Riding) return false;
+            ClearPath();
+            IsRunning = false;
+            _sitFrom = Feet;
+            _sitTo = seat;
+            _sitExit = exit;
+            _sitOrder = benchOrder + 1;
+            _sitT = 0f;
+            _dir = 0;
+            _anim = 0f;
+            _frame = 0;
+            Sit = SitPhase.Sitting;
+            ApplySprite();
+            return true;
+        }
+
+        /// <summary>Berdiri lagi ke titik depan bangku. Hanya dari posisi duduk penuh.</summary>
+        public void StandUp()
+        {
+            if (Sit != SitPhase.Seated) return;
+            _sitFrom = Feet;
+            _sitTo = _sitExit;
+            _sitT = 0f;
+            Sit = SitPhase.Standing;
+        }
+
+        void TickSit(float dt)
+        {
+            IsRunning = false;
+            if (Sit == SitPhase.Sitting || Sit == SitPhase.Standing)
+            {
+                _sitT = Mathf.Min(1f, _sitT + dt / SitTweenTime);
+                float k = Mathf.SmoothStep(0f, 1f, _sitT);
+                Vector2 p = Vector2.Lerp(_sitFrom, _sitTo, k);
+                transform.position = new Vector3(p.x, p.y + Mathf.Sin(k * Mathf.PI) * SitHop, 0f);
+                if (_sitT >= 1f)
+                {
+                    transform.position = new Vector3(_sitTo.x, _sitTo.y, 0f);
+                    Sit = Sit == SitPhase.Sitting ? SitPhase.Seated : SitPhase.None;
+                }
+            }
+            ApplySprite();
+        }
+
+        /// <summary>Pose duduk sedang tampil (separuh akhir transisi duduk / separuh awal berdiri).</summary>
+        bool SeatedPose =>
+            Sit == SitPhase.Seated ||
+            (Sit == SitPhase.Sitting && _sitT >= 0.5f) ||
+            (Sit == SitPhase.Standing && _sitT < 0.5f);
+
+        /// <summary>
+        /// Pose duduk = sprite menghadap depan dengan baris kaki dipotong (paha tertutup dudukan).
+        /// Dibuat dari sprite "lc_player_down_0" yang sedang aktif, jadi otomatis ikut pakaian;
+        /// tidak membuat tekstur baru, hanya Sprite yang menunjuk tekstur yang sama.
+        /// </summary>
+        Sprite SeatedSprite()
+        {
+            Sprite src = PixelArt.Get("lc_player_down_0");
+            if (src == null) return null;
+            if (src == _sitSource && _sitSprite != null) return _sitSprite;
+            if (_sitSprite != null) Destroy(_sitSprite);
+            _sitSource = src;
+            Rect r = src.textureRect;
+            var crop = new Rect(r.x, r.y + SitCropPx, r.width, r.height - SitCropPx);
+            _sitSprite = Sprite.Create(src.texture, crop, new Vector2(0.5f, 0f), src.pixelsPerUnit, 0, SpriteMeshType.FullRect);
+            _sitSprite.name = "lc_player_sit";
+            return _sitSprite;
+        }
+
+        void OnDestroy()
+        {
+            if (_sitSprite != null) Destroy(_sitSprite);
+            ClearRideSprites();
+        }
+
+        // ------------------------------------------------------------------ duduk di kendaraan
+
+        const int RideLegRows = 6;   // baris kaki pada sprite pemain (dipotong; kaki digambar ulang)
+
+        SpriteRenderer _limbRenderer;   // kaki & tangan pengendara (di depan kendaraan)
+        Sprite _rideSource;
+        readonly System.Collections.Generic.Dictionary<int, Sprite> _rideSprites =
+            new System.Collections.Generic.Dictionary<int, Sprite>();
+
+        Sprite _colorSource;
+        Color32 _pants = new Color32(58, 74, 106, 255), _shoes = new Color32(43, 34, 51, 255),
+                _shirt = new Color32(90, 143, 214, 255);
+
+        void ClearRideSprites()
+        {
+            foreach (var s in _rideSprites.Values) if (s != null) Destroy(s);
+            _rideSprites.Clear();
+        }
+
+        static int RideView(int dir) => dir == 0 ? 0 : dir == 1 ? 1 : 2;
+
+        /// <summary>
+        /// Badan pengendara: sprite arah yang sama, kaki (6 baris bawah) dipotong, dan pivot digeser
+        /// sehingga pinggul tepat di jok (naik <c>Hip</c> piksel; tampak samping digeser ke jok).
+        /// Tidak membuat tekstur baru, jadi otomatis ikut pakaian yang dipakai.
+        /// </summary>
+        Sprite RiderSprite(Sprite src, int bob)
+        {
+            if (src == null || !LifeArt.RideSeat(_vehicle, RideView(_dir), out var seat)) return src;
+            int shift = _dir == 2 ? -seat.Shift : seat.Shift;   // menghadap kiri: kendaraan dicerminkan
+            int hip = seat.Hip + bob;
+            if (src != _rideSource) { ClearRideSprites(); _rideSource = src; }
+            int key = hip * 1000 + shift + 500;
+            if (_rideSprites.TryGetValue(key, out Sprite s) && s != null) return s;
+
+            Rect r = src.textureRect;
+            var crop = new Rect(r.x, r.y + RideLegRows, r.width, r.height - RideLegRows);
+            var pivot = new Vector2(0.5f - shift / crop.width, -hip / crop.height);
+            s = Sprite.Create(src.texture, crop, pivot, src.pixelsPerUnit, 0, SpriteMeshType.FullRect);
+            s.name = "lc_player_ride";
+            _rideSprites[key] = s;
+            return s;
+        }
+
+        /// <summary>Warna celana, sepatu, dan baju dari sprite pemain tampak depan (ikut pakaian).</summary>
+        void SampleOutfitColors()
+        {
+            Sprite src = PixelArt.Get("lc_player_down_0");
+            if (src == null || src == _colorSource) return;
+            _colorSource = src;
+            try
+            {
+                var tex = src.texture;
+                Rect r = src.textureRect;
+                Color32[] px = tex.GetPixels32();
+                Color32 Pick(int y0, int y1, Color32 fallback)
+                {
+                    var count = new System.Collections.Generic.Dictionary<uint, int>();
+                    Color32 best = fallback; int bestN = 0;
+                    for (int y = y0; y <= y1; y++)
+                        for (int x = 0; x < (int)r.width; x++)
+                        {
+                            Color32 c = px[((int)r.y + y) * tex.width + (int)r.x + x];
+                            if (c.a < 200) continue;
+                            if (c.r + c.g + c.b < 90) continue;   // garis tepi gelap
+                            uint k = ((uint)c.r << 16) | ((uint)c.g << 8) | c.b;
+                            count.TryGetValue(k, out int n);
+                            count[k] = ++n;
+                            if (n > bestN) { bestN = n; best = c; }
+                        }
+                    best.a = 255;
+                    return best;
+                }
+                _shoes = Pick(0, 1, _shoes);
+                _pants = Pick(2, RideLegRows - 1, _pants);
+                _shirt = Pick(RideLegRows + 1, RideLegRows + 5, _shirt);
+            }
+            catch (UnityException) { /* tekstur tidak bisa dibaca: pakai warna bawaan */ }
+        }
+
+        /// <summary>Kaki & tangan pengendara, di depan kendaraan dan ikut bergoyang bersamanya.</summary>
+        void ApplyRiderLimbs(int order, float bob, int phase)
+        {
+            bool show = Riding && !SitBusy && LifeArt.RideSeat(_vehicle, RideView(_dir), out _);
+            if (!show)
+            {
+                if (_limbRenderer != null) _limbRenderer.enabled = false;
+                return;
+            }
+            if (_limbRenderer == null)
+            {
+                var go = new GameObject("RiderLimbs");
+                go.transform.SetParent(transform, false);
+                _limbRenderer = go.AddComponent<SpriteRenderer>();
+                _limbRenderer.sharedMaterial = PixelArt.SpriteMaterial;
+            }
+            SampleOutfitColors();
+            _limbRenderer.enabled = true;
+            _limbRenderer.sprite = LifeArt.RiderLimbs(_vehicle, RideView(_dir), phase, _pants, _shoes, _shirt);
+            _limbRenderer.flipX = _dir == 2;
+            _limbRenderer.sortingOrder = order + 2;
+            _limbRenderer.color = _body.color;
+            _limbRenderer.transform.localPosition = new Vector3(0f, bob, 0f);
+        }
+
+        // ------------------------------------------------------------------ jalan
+
+        /// <summary>Jarak maksimal geser samping otomatis saat menabrak sudut (kusen pintu, ujung pagar).</summary>
+        const float CornerNudge = 0.4f;
+
+        /// <summary>
+        /// "Corner assist": bila gerak lurus terhalang tetapi ada celah dalam jarak <see cref="CornerNudge"/>
+        /// ke samping, geser pemain ke arah celah itu. Mencegah tersangkut di kusen pintu / sudut bangunan
+        /// ketika posisi pemain meleset sedikit dari lorong.
+        /// </summary>
+        Vector2 CornerAssist(Vector2 pos, Vector2 delta, float step)
+        {
+            bool vertical = Mathf.Abs(delta.y) >= Mathf.Abs(delta.x);
+            float mainLen = vertical ? Mathf.Abs(delta.y) : Mathf.Abs(delta.x);
+            float sideLen = vertical ? Mathf.Abs(delta.x) : Mathf.Abs(delta.y);
+            if (mainLen < 0.0001f || sideLen > mainLen * 0.35f) return pos;   // gerak diagonal: geser sumbu biasa sudah cukup
+
+            Vector2 main = vertical ? new Vector2(0f, delta.y) : new Vector2(delta.x, 0f);
+            Vector2 side = vertical ? Vector2.right : Vector2.up;
+            for (float s = 0.05f; s <= CornerNudge + 0.001f; s += 0.05f)
+                for (int sign = -1; sign <= 1; sign += 2)
+                {
+                    Vector2 probe = pos + side * (s * sign);
+                    if (!_world.CanStand(probe.x, probe.y)) continue;
+                    Vector2 ahead = probe + main;
+                    if (!_world.CanStand(ahead.x, ahead.y)) continue;
+                    Vector2 next = pos + side * (Mathf.Min(step, s) * sign);
+                    if (_world.CanStand(next.x, next.y)) return next;
+                }
+            return pos;
+        }
+
         public void Tick(float dt) => Tick(dt, false);
 
         /// <param name="allowRun">Boleh berlari (mis. energi masih cukup).</param>
@@ -145,6 +389,7 @@ namespace PixelAdventure.LifeSim
         {
             if (dt <= 0f) return;
             PathArrived = false;
+            if (SitBusy) { TickSit(dt); return; }   // duduk: abaikan input jalan / lari
             float ix = LifeInput.X;
             float iy = LifeInput.Y;
             var input = new Vector2(ix, iy);
@@ -194,10 +439,21 @@ namespace PixelAdventure.LifeSim
                     float remain = Vector2.Distance(pos, _path[_pathIndex]);
                     if (delta.magnitude > remain) delta = delta.normalized * remain;
                 }
+                if (_world != null && !_world.CanStand(pos.x, pos.y))
+                {
+                    // Jaring pengaman: kaki sudah berada di dalam penghalang (muncul di posisi
+                    // terhalang, penghalang baru, dsb.) sehingga semua arah ditolak = macet total.
+                    // Pindahkan ke titik bebas terdekat.
+                    Vector2? free = _world.NearestStandable(pos);
+                    if (free.HasValue) pos = free.Value;
+                }
+                Vector2 before = pos;
                 if (_world == null || _world.CanStand(pos.x + delta.x, pos.y))
                     pos.x += delta.x;
                 if (_world == null || _world.CanStand(pos.x, pos.y + delta.y))
                     pos.y += delta.y;
+                if (_world != null && pos == before)
+                    pos = CornerAssist(pos, delta, speed * dt);
                 transform.position = new Vector3(pos.x, pos.y, 0f);
             }
 
@@ -223,21 +479,30 @@ namespace PixelAdventure.LifeSim
         void ApplySprite()
         {
             // Di atas kendaraan kaki tidak melangkah: pakai pose diam.
-            _body.sprite = PixelArt.Get("lc_player_" + DirNames[_dir] + "_" + (Riding ? 0 : _frame));
+            bool seated = SitBusy && SeatedPose;
+            // Goyang halus 1 piksel saat melaju: badan, kendaraan, dan kaki/tangan bergerak bersama.
+            int bobPx = Riding && _anim > 0f && ((int)(_anim * 1.5f) % 2 == 0) ? 1 : 0;
+            Sprite pose = seated ? SeatedSprite() : PixelArt.Get("lc_player_" + DirNames[_dir] + "_" + (Riding ? 0 : _frame));
+            if (!seated && Riding) pose = RiderSprite(pose, bobPx);
+            _body.sprite = pose;
             int order = -Mathf.RoundToInt(transform.position.y * PixelArt.PPU);
+            if (SitBusy) order = Mathf.Max(order, _sitOrder);   // duduk: digambar di depan bangku
             _body.sortingOrder = order;
             _shadow.sortingOrder = order - 1;
+            _shadow.enabled = !seated;
             _shadow.transform.localPosition = new Vector3(0f, 0.06f, 0f);
             if (_vehicleRenderer != null && Riding)
             {
                 string view = _dir == 0 ? "front" : _dir == 1 ? "back" : "side";
                 _vehicleRenderer.sprite = PixelArt.Get("lc_ride_" + _vehicle + "_" + view);
                 _vehicleRenderer.flipX = _dir == 2;
-                // Kendaraan menutupi kaki pemain (duduk di atasnya); goyang halus saat melaju.
+                // Kendaraan menutupi pinggul pemain (duduk di jok); kaki & tangan digambar di depannya.
                 _vehicleRenderer.sortingOrder = order + 1;
-                float bob = _anim > 0f && ((int)(_anim * 1.5f) % 2 == 0) ? 1f / PixelArt.PPU : 0f;
-                _vehicleRenderer.transform.localPosition = new Vector3(0f, bob, 0f);
+                _vehicleRenderer.transform.localPosition = new Vector3(0f, bobPx / PixelArt.PPU, 0f);
             }
+            // Sepeda: kaki bergantian mengayuh saat melaju.
+            int phase = _vehicle == "sepeda" && _anim > 0f ? (int)(_anim * 0.6f) % 2 : 0;
+            ApplyRiderLimbs(order, bobPx / PixelArt.PPU, phase);
         }
     }
 }

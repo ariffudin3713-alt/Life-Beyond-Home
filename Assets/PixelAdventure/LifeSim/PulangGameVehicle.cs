@@ -96,6 +96,7 @@ namespace PixelAdventure.LifeSim
         {
             reason = null;
             if (_world.InInterior) reason = "TIDAK BISA MEMANGGIL KENDARAAN DI DALAM RUANGAN";
+            else if (_player != null && _player.SitBusy) reason = "BERDIRI DULU SEBELUM MEMANGGIL KENDARAAN";
             return reason == null;
         }
 

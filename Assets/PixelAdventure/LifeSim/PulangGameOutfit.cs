@@ -137,19 +137,23 @@ namespace PixelAdventure.LifeSim
         {
             var labels = new List<string>();
             var actions = new List<Action>();
+            var icons = new List<string>();
             foreach (var s in WearSlots)
             {
-                int n = OutfitsSoldAt(loc, s).Count;
+                var models = OutfitsSoldAt(loc, s);
+                int n = models.Count;
                 if (n == 0) continue;
                 WearSlot slot = s;
                 labels.Add(SlotName(s) + " (" + n + " MODEL)");
                 actions.Add(() => OpenOutfitShop(loc, slot, 0));
+                icons.Add(PreviewIcon(models[0]));   // contoh model pertama kategori ini
             }
             if (labels.Count == 0) return;
             if (labels.Count == 1) { actions[0](); return; }
             labels.Add("SELESAI");
             actions.Add(null);
             OpenMenu("TOKO PAKAIAN - " + Rp(D.money), labels, actions);
+            _hud.SetMenuIcons(icons);
         }
 
         /// <summary>Koleksi satu slot: beli (langsung dipakai) atau pakai/lepas yang sudah dimiliki.</summary>
@@ -162,10 +166,12 @@ namespace PixelAdventure.LifeSim
 
             var labels = new List<string>();
             var actions = new List<Action>();
+            var icons = new List<string>();   // gambar tokoh memakai pakaian pada pilihan yang disorot
             for (int i = page * OutfitsPerPage; i < Math.Min(all.Count, (page + 1) * OutfitsPerPage); i++)
             {
                 ItemDef it = all[i];
                 bool owned = D.inventory.Contains(it.Id);
+                icons.Add(PreviewIcon(it));
                 if (IsWorn(it)) labels.Add(("Lepas: " + it.Name + " (dipakai)").ToUpperInvariant());
                 else if (owned) labels.Add(("Pakai: " + it.Name).ToUpperInvariant());
                 else labels.Add(("Beli " + it.Name + " - " + Rp(it.Price)).ToUpperInvariant());
@@ -190,6 +196,7 @@ namespace PixelAdventure.LifeSim
             var worn = Worn(slot);
             OpenMenu(SlotName(slot) + " - DIPAKAI: " + (worn != null ? worn.Name.ToUpperInvariant() : DefaultWearName(slot)) +
                      " - " + Rp(D.money), labels, actions);
+            _hud.SetMenuIcons(icons);   // "Model lain" / "Kembali" / "Selesai" tanpa gambar (bingkai kosong)
         }
     }
 }

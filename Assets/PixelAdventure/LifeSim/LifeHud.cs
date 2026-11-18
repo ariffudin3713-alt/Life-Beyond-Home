@@ -29,7 +29,11 @@ namespace PixelAdventure.LifeSim
         readonly float[] _starPhases = new float[StarCount];
 
         SpriteRenderer _statsPanel, _barsPanel;
-        SpriteRenderer _statsRule1, _statsRule2, _questLabel;
+        Transform _statsCorner, _barsCorner;
+        /// <summary>Skala panel status kiri atas & bar kanan atas (1 = ukuran asli).</summary>
+        const float CornerHudScale = 0.75f;
+        SpriteRenderer _statsRule1, _statsRule2, _questLabel, _dateText;
+        int _dateDay = -1, _dateChars = -1;   // tanggal kalender terakhir yang digambar
         SpriteRenderer _dayText, _timeText, _moneyText, _questText, _questText2, _phaseText, _hungerText;
         SpriteRenderer _coinIcon, _clockIcon, _boltIcon, _heartIcon;
         SpriteRenderer _energyBar, _energyFill, _affBar, _affFill, _affNameText;
@@ -189,6 +193,22 @@ namespace PixelAdventure.LifeSim
             _statsRule1 = Solid(_hudGroup, "StatsRule1", new Color(1f, 1f, 1f, 0.12f), 3995);
             _statsRule2 = Solid(_hudGroup, "StatsRule2", new Color(1f, 1f, 1f, 0.12f), 3995);
             _questLabel = Text(_hudGroup, "QuestLabel", "MISI SAAT INI", 1, Soft, new Vector2(0f, 0.5f));
+            // Baris tanggal kalender di bawah HARI / jam: "SENIN, 5 JANUARI 2026".
+            _dateText = Text(_hudGroup, "Date", " ", 1, Soft, new Vector2(0f, 0.5f));
+
+            // Panel kiri atas & kanan atas digambar di grup pojok yang diperkecil (CornerHudScale).
+            _statsCorner = new GameObject("StatsCorner").transform;
+            _statsCorner.SetParent(_hudGroup, false);
+            foreach (var sr in new[] { _statsPanel, _dayText, _timeText, _moneyText, _questText, _questText2,
+                         _phaseText, _hungerText, _coinIcon, _clockIcon, _seedIcon, _flowerIcon, _seedText,
+                         _flowerText, _statsRule1, _statsRule2, _questLabel, _dateText })
+                sr.transform.SetParent(_statsCorner, false);
+            _barsCorner = new GameObject("BarsCorner").transform;
+            _barsCorner.SetParent(_hudGroup, false);
+            foreach (var sr in new[] { _barsPanel, _energyBar, _energyFill, _boltIcon, _affBar, _affFill, _heartIcon,
+                         _affNameText, _hungerIcon, _hungerBarBg, _hungerBarFill, _hungerLabel,
+                         _thirstIcon, _thirstBarBg, _thirstBarFill, _thirstLabel })
+                sr.transform.SetParent(_barsCorner, false);
 
             _toast = Text(_hudGroup, "Toast", " ", 2, Gold, new Vector2(0.5f, 0.5f), 4020);
             _toast.gameObject.SetActive(false);
@@ -238,6 +258,11 @@ namespace PixelAdventure.LifeSim
                 _lastDay = dayText;
                 SetText(_dayText, dayText, Ink, 1, new Vector2(0f, 0.5f));
             }
+            if (day != _dateDay)
+            {
+                _dateDay = day;
+                ApplyDate();
+            }
             if (timeText != _lastTime)
             {
                 _lastTime = timeText;
@@ -275,6 +300,35 @@ namespace PixelAdventure.LifeSim
                 _lastAffName = affName;
                 SetText(_affNameText, affName, Pink, 1, new Vector2(1f, 0.5f));
             }
+        }
+
+        string _questLabelText = "MISI SAAT INI", _questLabelShown;
+
+        /// <summary>Judul bagian misi di panel kiri atas (mis. "MISI DARI BU SARI - OBAT UNTUK IBU").</summary>
+        public void SetQuestLabel(string label)
+        {
+            _questLabelText = string.IsNullOrEmpty(label) ? "MISI SAAT INI" : label.ToUpperInvariant();
+            ApplyQuestLabel();
+        }
+
+        void ApplyQuestLabel()
+        {
+            if (_questLabel == null) return;
+            int max = Mathf.Max(8, Mathf.FloorToInt((_statsW - 1f) / PixelFont.CharW));
+            string t = _questLabelText;
+            if (t.Length > max) t = t.Substring(0, max - 1).TrimEnd() + ".";
+            if (t == _questLabelShown) return;
+            _questLabelShown = t;
+            // Misi sampingan: hijau (warna penanda misi sampingan); misi utama: warna label biasa.
+            bool side = _questLabelText != "MISI SAAT INI";
+            SetText(_questLabel, t, side ? new Color(0.55f, 0.95f, 0.65f, 1f) : Soft, 1, new Vector2(0f, 0.5f));
+        }
+
+        void ApplyDate()
+        {
+            if (_dateText == null || _dateDay < 1) return;
+            int chars = _dateChars > 0 ? _dateChars : 99;
+            SetText(_dateText, GameCalendar.Fit(_dateDay, chars), Soft, 1, new Vector2(0f, 0.5f));
         }
 
         /// <summary>Lebar panel status kiri atas (unit) — teks misi dibungkus agar muat di dalamnya.</summary>
@@ -528,12 +582,23 @@ namespace PixelAdventure.LifeSim
             //   1) HARI n   [jam] 08:30 ........ PAGI
             //   2) MISI SAAT INI / teks misi (maks. 2 baris)
             //   3) [koin] RP245.000 ...... TABUNGAN RP120.000
-            float top = halfH - 0.28f;
-            float left = -halfW + 0.28f;
-            float statsW = Mathf.Clamp(halfW * 2f - 8.4f - 0.56f - 0.4f, 10.5f, StatsPanelMaxW);
-            if (Mathf.Abs(statsW - _statsW) > 0.01f) { _statsW = statsW; SetQuestLines(_lastQuest); }
+            // Kedua panel atas ada di grup pojok yang diperkecil; koordinat di bawah ini lokal terhadap pojoknya.
+            float cs = CornerHudScale;
+            float cornerTop = halfH - 0.28f, cornerLeft = -halfW + 0.28f, cornerRight = halfW - 0.28f;
+            _statsCorner.localPosition = new Vector3(cornerLeft, cornerTop, 0f);
+            _barsCorner.localPosition = new Vector3(cornerRight, cornerTop, 0f);
+            if (!Mathf.Approximately(_statsCorner.localScale.x, cs))
+            {
+                _statsCorner.localScale = new Vector3(cs, cs, 1f);
+                _barsCorner.localScale = new Vector3(cs, cs, 1f);
+            }
+            float top = 0f;
+            float left = 0f;
+            float statsW = Mathf.Clamp((halfW * 2f - 0.56f - 0.4f) / cs - 8.4f, 10.5f, StatsPanelMaxW);
+            if (Mathf.Abs(statsW - _statsW) > 0.01f) { _statsW = statsW; SetQuestLines(_lastQuest); ApplyQuestLabel(); }
             // Jarak antarbaris >= 0,62 (tinggi huruf 0,56) agar tidak ada baris yang menempel.
-            const float statsH = 4.75f;   // + satu baris: tabungan di bawah uang
+            const float statsH = 5.37f;   // + baris tanggal & baris tabungan
+            const float dRow = 0.62f;     // baris tanggal menggeser bagian bawah panel
             float padL = left + 0.5f, padR = left + _statsW - 0.5f;
             SetRect(_statsPanel, left + _statsW * 0.5f, top - statsH * 0.5f, _statsW, statsH);
 
@@ -545,14 +610,18 @@ namespace PixelAdventure.LifeSim
             _clockIcon.transform.localPosition = new Vector3(clockX, row1, 0f);
             _timeText.transform.localPosition = new Vector3(clockX + 0.6f, row1, 0f);
             _phaseText.transform.localPosition = new Vector3(padR, row1, 0f);
-            SetSolid(_statsRule1, left + _statsW * 0.5f, top - 1.1f, _statsW - 0.7f, 0.05f);
+            // Baris 2: tanggal kalender (dipendekkan bila panel sempit).
+            _dateText.transform.localPosition = new Vector3(padL, row1 - dRow, 0f);
+            int dateChars = Mathf.FloorToInt((padR - padL) / PixelFont.CharW);
+            if (dateChars != _dateChars) { _dateChars = dateChars; ApplyDate(); }
+            SetSolid(_statsRule1, left + _statsW * 0.5f, top - 1.1f - dRow, _statsW - 0.7f, 0.05f);
 
-            _questLabel.transform.localPosition = new Vector3(padL, top - 1.52f, 0f);
-            _questText.transform.localPosition = new Vector3(padL, top - 2.14f, 0f);
-            _questText2.transform.localPosition = new Vector3(padL, top - 2.76f, 0f);
-            SetSolid(_statsRule2, left + _statsW * 0.5f, top - 3.2f, _statsW - 0.7f, 0.05f);
+            _questLabel.transform.localPosition = new Vector3(padL, top - 1.52f - dRow, 0f);
+            _questText.transform.localPosition = new Vector3(padL, top - 2.14f - dRow, 0f);
+            _questText2.transform.localPosition = new Vector3(padL, top - 2.76f - dRow, 0f);
+            SetSolid(_statsRule2, left + _statsW * 0.5f, top - 3.2f - dRow, _statsW - 0.7f, 0.05f);
 
-            float row3 = top - 3.62f;
+            float row3 = top - 3.62f - dRow;
             _coinIcon.transform.localPosition = new Vector3(padL + 0.3f, row3, 0f);
             _moneyText.transform.localPosition = new Vector3(padL + 0.75f, row3, 0f);
             // Tabungan di baris sendiri, tepat di bawah uang & sejajar dengan teks uang (tidak berdempetan).
@@ -568,7 +637,7 @@ namespace PixelAdventure.LifeSim
             _flowerText.transform.localPosition = new Vector3(left + 2.95f, top - 2.45f, 0f);
 
             // ---------------- top right bars
-            float right = halfW - 0.28f;
+            float right = 0f;
             float barsLeft = right - 8.4f;
             const float barsH = 3.5f;
             SetRect(_barsPanel, right - 4.2f, top - barsH * 0.5f, 8.4f, barsH);
@@ -585,8 +654,8 @@ namespace PixelAdventure.LifeSim
             // Panel status tidak bisa diklik, tetapi klik di atasnya tidak boleh menjadi "jalan ke sini".
             if (PlayHitsOn)
             {
-                Hit(UiHit.Blocker, 0, new Rect(left, top - statsH, _statsW, statsH), 0, false);
-                Hit(UiHit.Blocker, 1, new Rect(right - 8.4f, top - barsH, 8.4f, barsH), 0, false);
+                Hit(UiHit.Blocker, 0, new Rect(cornerLeft, cornerTop - statsH * cs, _statsW * cs, statsH * cs), 0, false);
+                Hit(UiHit.Blocker, 1, new Rect(cornerRight - 8.4f * cs, cornerTop - barsH * cs, 8.4f * cs, barsH * cs), 0, false);
             }
 
             // ---------------- toast

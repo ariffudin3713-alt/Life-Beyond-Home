@@ -21,7 +21,7 @@ namespace PixelAdventure.LifeSim
             var q = _story.Current;
             string chapter = q.Chapter == Chapter.Prolog ? "PROLOG"
                 : q.Chapter == Chapter.Ending ? "ENDING" : "CHAPTER " + (int)q.Chapter;
-            string header = "HARI " + D.day + "   " + chapter;
+            string header = "HARI " + D.day + "  " + GameCalendar.ShortDate(D.day) + "   " + chapter;
 
             int savePct = Mathf.RoundToInt(Mathf.Clamp01(D.savings / (float)PulangBalance.SuccessSavings) * 100f);
             var rows = new List<ProfileRow>

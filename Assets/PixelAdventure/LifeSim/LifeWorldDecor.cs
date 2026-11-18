@@ -110,7 +110,7 @@ namespace PixelAdventure.LifeSim
             {
                 case Region.KotaJogokerto:
                     c.AddGarden(new Rect(8f, 51f, 20f, 12f), 7, 4);    // Taman Pelangi
-                    c.AddGarden(new Rect(67f, 49f, 25f, 19f), 5, 6);   // Alun-Alun Merdeka
+                    c.AddGarden(new Rect(64.5f, 51f, 30f, 20f), 8, 9);  // Alun-Alun Merdeka
                     break;
                 case Region.KampungCempaka:
                     c.AddGarden(new Rect(61f, 47f, 20f, 14f), 3, 3);   // Lapangan Kampung

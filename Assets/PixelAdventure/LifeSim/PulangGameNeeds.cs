@@ -58,12 +58,12 @@ namespace PixelAdventure.LifeSim
             string text = "";
             if (it.Drink)
             {
-                D.thirst = Mathf.Min(100f, D.thirst + 30f + it.Energy * 2f);
+                D.thirst = Mathf.Min(100f, D.thirst + DrinkFill(it));
                 text = "HAUS " + NeedValue(D.thirst) + "/100";
             }
             else
             {
-                D.hunger = Mathf.Min(100f, D.hunger + it.Energy * 2f);
+                D.hunger = Mathf.Min(100f, D.hunger + FoodFill(it));
                 text = "LAPAR " + NeedValue(D.hunger) + "/100";
                 if (it.Thirst > 0)
                 {
@@ -79,10 +79,23 @@ namespace PixelAdventure.LifeSim
         /// <summary>Teks kegunaan di inventori, mis. "+30 LAPAR" / "+46 HAUS".</summary>
         static string NeedEffect(ItemDef it)
         {
-            if (it.Drink) return "+" + Mathf.RoundToInt(30f + it.Energy * 2f) + " HAUS";
-            string s = "+" + it.Energy * 2 + " LAPAR";
+            if (it.Drink) return "+" + DrinkFill(it) + " HAUS";
+            string s = "+" + FoodFill(it) + " LAPAR";
             if (it.Thirst > 0) s += "  +" + it.Thirst + " HAUS";
             return s;
         }
+
+        /// <summary>Versi ringkas untuk daftar toko (label menu bisa terpotong di layar sempit), mis. "+50 lapar +15 haus".</summary>
+        static string NeedEffectShort(ItemDef it)
+        {
+            if (it.Drink) return "+" + DrinkFill(it) + " haus";
+            string s = "+" + FoodFill(it) + " lapar";
+            if (it.Thirst > 0) s += " +" + it.Thirst + " haus";
+            return s;
+        }
+
+        // Rumus yang sama dengan FeedNeeds, supaya keterangan di toko & inventori selalu cocok.
+        static int DrinkFill(ItemDef it) => Mathf.RoundToInt(30f + it.Energy * 2f);
+        static int FoodFill(ItemDef it) => it.Energy * 2;
     }
 }

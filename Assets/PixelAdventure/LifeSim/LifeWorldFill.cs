@@ -95,7 +95,7 @@ namespace PixelAdventure.LifeSim
             {
                 case Region.KotaJogokerto:
                     _avoid.Add(A(4, 47, 28, 22));            // Taman Pelangi
-                    _avoid.Add(A(66, 47, 28, 23));           // Alun-Alun Merdeka
+                    _avoid.Add(A(63, 49, 33, 23));           // Alun-Alun Merdeka
                     // Celah di deretan selatan jalan (dasar y 21)
                     Fill("apotek", A(15, 21, 10, 0));
                     Fill("barber", A(27, 21, 10, 0));

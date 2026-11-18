@@ -128,7 +128,22 @@ namespace PixelAdventure.LifeSim
             // Wilayah yang berisi misi & tempat tujuan misi.
             var questRegions = new HashSet<Region>();
             var goalPlaces = new HashSet<LocationId>();
-            foreach (int i in PendingObjectiveIndices())
+            // Fokus satu misi: selama misi sampingan diambil, peta hanya menandai tujuan misi itu.
+            var focus = FocusedSideQuest(out SideQuestProgress focusProgress);
+            if (focus != null)
+            {
+                var s = focus.Steps[focusProgress.step];
+                LocationId? fl = null;
+                if (s.Event == StoryEvent.Arrive && Enum.TryParse(s.Key, out LocationId al)) fl = al;
+                else if (s.Event == StoryEvent.Talk && Enum.TryParse(s.Key, out NpcId fn)) fl = NpcHome(fn);
+                else if (s.Event == StoryEvent.Save) fl = LocationId.KostPelangi;
+                if (fl != null)
+                {
+                    questRegions.Add(PulangWorld.Get(fl.Value).Region);
+                    if (s.Event != StoryEvent.Talk) goalPlaces.Add(fl.Value);
+                }
+            }
+            else foreach (int i in PendingObjectiveIndices())
             {
                 var o = _story.Current.Objectives[i];
                 if (TryGetObjectiveRegion(o, out Region qr)) questRegions.Add(qr);

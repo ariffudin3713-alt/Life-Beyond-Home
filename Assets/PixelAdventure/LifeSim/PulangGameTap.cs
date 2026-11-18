@@ -93,6 +93,14 @@ namespace PixelAdventure.LifeSim
                     Try(_world.Spot(loc));
             foreach (var d in _world.DecorIn(_world.CurrentRegion)) Try(d.Door);
             foreach (var l in _world.LitterIn(_world.CurrentRegion)) if (l.activeSelf) Try(l.transform.position);
+            // Mengetuk bangku: jalan ke depan kursi kosong itu, lalu duduk saat sampai.
+            if (RidingVehicle == null)
+                foreach (var s in _world.SeatsIn(_world.CurrentRegion))
+                {
+                    if (!s.Free) continue;
+                    float d = (s.Pos - tap).sqrMagnitude;
+                    if (d < best) { best = d; bestPos = _world.SeatExit(s); found = true; }
+                }
             // Mengetuk badan bangunan (bukan pintunya) juga memilih pintunya.
             if (!found)
             {

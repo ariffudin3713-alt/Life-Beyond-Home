@@ -53,7 +53,7 @@ namespace PixelAdventure.LifeSim
             new Placement(LocationId.Sekolah,          Kind.Facade, 26f, 5f),
             new Placement(LocationId.PusatKota,        Kind.Spot,  56f, 34f),
             new Placement(LocationId.TamanPelangi,     Kind.Spot,  18f, 52f),
-            new Placement(LocationId.AlunAlunMerdeka,  Kind.Spot,  80f, 52f),
+            new Placement(LocationId.AlunAlunMerdeka,  Kind.Spot,  80f, 53.5f),
             new Placement(LocationId.TerminalJogokerto, Kind.Halte, 40f, 40.2f),  // trotoar utara, di antara Minimarket dan jalan simpang
 
             // ---------------- Kampung Cempaka
@@ -100,7 +100,7 @@ namespace PixelAdventure.LifeSim
             new Placement(LocationId.GerejaKota, Kind.Facade, 59f, 58f),
 
             // ---------------- Tempat makan khas Indonesia (gerobak / tenda)
-            new Placement(LocationId.GerobakBakso,    Kind.Cart, 74f, 56f),    // Alun-Alun Merdeka
+            new Placement(LocationId.GerobakBakso,    Kind.Cart, 70f, 57.5f),  // Alun-Alun Merdeka (barat pelataran)
             new Placement(LocationId.Angkringan,      Kind.Cart, 78.5f, 43.6f),// Kampung, dekat lapangan
             new Placement(LocationId.WarungPecelLele, Kind.Cart, 54f, 48f),    // Pasar, belakang los
             new Placement(LocationId.KiosEsKelapa,    Kind.Cart, 30f, 30f),    // Pantai, di pasir
@@ -143,7 +143,7 @@ namespace PixelAdventure.LifeSim
             { LocationId.TerminalDesa,      new Vector3(81.4f, 34.6f, -1.5f) },
             { LocationId.TerminalCempaka,   new Vector3(9.4f, 34.4f, 1.5f) },
             { LocationId.PasarTradisional,  new Vector3(10.2f, 35.4f, 1.5f) },
-            { LocationId.PusatKota,         new Vector3(57.2f, 28.9f, 1.5f) },
+            { LocationId.PusatKota,         new Vector3(58.3f, 28.9f, 1.5f) },   // di kanan papan PUSAT KOTA, tidak tertutup papan
         };
 
         public bool TryNpcAnchor(LocationId id, int index, out Vector2 pos)
@@ -270,7 +270,8 @@ namespace PixelAdventure.LifeSim
                     // Tempat terbuka: papan bertiang di pinggir, bukan di tengah jalur.
                     spot = new Vector2(x, y - 1f);
                     Vector2 at = SpotSignPos.TryGetValue(p.Id, out Vector2 custom) ? custom : spot + new Vector2(-3f, 0.6f);
-                    PostSign(name, at.x, at.y, StreetNames.Contains(p.Id) ? PlateStyle.Jalan : PlateStyle.Tempat);
+                    PostSign(name, at.x, at.y, StreetNames.Contains(p.Id) ? PlateStyle.Jalan : PlateStyle.Tempat,
+                        SpotSignWidth.TryGetValue(p.Id, out float signW) ? signW : 5.2f);
                     break;
             }
 
@@ -310,7 +311,8 @@ namespace PixelAdventure.LifeSim
             { LocationId.LapanganDesa,          new Vector2(34.5f, 47f) },
             { LocationId.Sawah,                 new Vector2(56f, 26.6f) },
             { LocationId.Perkebunan,            new Vector2(60.5f, 47f) },
-            { LocationId.PusatKota,             new Vector2(54.6f, 28.3f) },
+            // Tepat di kanan tiang lampu lalu lintas (x 53,6–54,6): papan sempit 2 baris mulai x 54,7.
+            { LocationId.PusatKota,             new Vector2(56.1f, 28.3f) },
             { LocationId.TamanPelangi,          new Vector2(5f, 49.5f) },
             { LocationId.AlunAlunMerdeka,       new Vector2(64.6f, 47.2f) },
             { LocationId.GangMelati,            new Vector2(34.3f, 33.6f) },
@@ -319,6 +321,15 @@ namespace PixelAdventure.LifeSim
             { LocationId.KebunWarga,            new Vector2(56.2f, 21.5f) },
             { LocationId.PeternakanKecil,       new Vector2(93.5f, 21.5f) },
             { LocationId.PantaiCemara,          new Vector2(39.5f, 41.6f) },
+        };
+
+        /// <summary>
+        /// Lebar maksimal papan bertiang (unit) bila perlu lebih sempit dari bawaan 5,2.
+        /// "PUSAT KOTA" satu baris selebar 5 unit menutupi lampu lalu lintas simpang; 2,7 unit = "PUSAT / KOTA".
+        /// </summary>
+        static readonly Dictionary<LocationId, float> SpotSignWidth = new Dictionary<LocationId, float>
+        {
+            { LocationId.PusatKota, 2.7f },
         };
 
         void Building(string sprite, float x, float y, float scale, float w, float h)
@@ -341,11 +352,11 @@ namespace PixelAdventure.LifeSim
 
                 case Region.KotaJogokerto:
                     Lamps(new[] { 12f, 27.4f, 30f, 27.4f, 66f, 27.4f, 88f, 27.4f, 16f, 40.6f, 66f, 40.6f });
-                    Trees(new[] { 8f, 60f, 28f, 62f, 6f, 52f, 70f, 64f, 90f, 64f, 70f, 52f });
-                    Make("lc_fountain", 80f, 58f, "AirMancur", Order(58f));
-                    AddObstacle(78.4f, 57.7f, 3.2f, 1.7f);
-                    Make("lc_bench", 14f, 56f, "Bangku", Order(56f));
-                    Make("lc_bench", 86f, 54f, "BangkuAlun", Order(54f));
+                    Trees(new[] { 8f, 60f, 28f, 62f, 6f, 52f });
+                    Make("lc_fountain", 80f, 60.5f, "AirMancur", Order(60.5f));
+                    AddObstacle(78.4f, 60.2f, 3.2f, 1.7f);
+                    Bench(14f, 56f, "Bangku");
+                    Bench(85.5f, 55.4f, "BangkuAlun");
                     BuildPark();
                     break;
 
@@ -354,8 +365,8 @@ namespace PixelAdventure.LifeSim
                     Building("lc_house", 12f, 14f, 1f, 6.8f, 5.9f);
                     Building("lc_house", 24f, 14f, 1f, 6.8f, 5.9f);
                     Building("lc_market_stall", 85f, 12f, 1f, 6f, 3f);       // kandang
-                    Make("lc_bench", 84f, 40f, "BangkuPemuda", Order(40f));
-                    Make("lc_bench", 89f, 40f, "BangkuPemuda2", Order(40f));
+                    Bench(84f, 40f, "BangkuPemuda");
+                    Bench(89f, 40f, "BangkuPemuda2");
                     Trees(new[] { 4f, 50f, 40f, 56f, 52f, 64f, 92f, 60f, 4f, 6f, 40f, 8f });
                     Make("lc_flowers", 33f, 56f, "BungaGang", Order(56f));
                     Make("lc_flowers", 29f, 40f, "BungaGang2", Order(40f));
@@ -497,10 +508,10 @@ namespace PixelAdventure.LifeSim
         }
 
         /// <summary>Papan bertiang untuk tempat terbuka dan nama jalan.</summary>
-        void PostSign(string title, float x, float y, PlateStyle style)
+        void PostSign(string title, float x, float y, PlateStyle style, float maxWidth = 5.2f)
         {
             AddObstacle(x - 0.12f, y, 0.24f, 0.2f);
-            CreateSign(title, x, y, 5.2f, style, Order(y), true);
+            CreateSign(title, x, y, maxWidth, style, Order(y), true);
         }
 
         void CreateSign(string title, float x, float y, float maxWidth, PlateStyle style, int order, bool post)
